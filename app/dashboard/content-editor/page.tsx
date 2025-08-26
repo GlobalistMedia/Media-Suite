@@ -373,24 +373,32 @@ export default function DistributionPage() {
       formData.append("urlToImage", articleImage); // Assuming articleImage is a File object
 
       // Make the POST request
-      const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/news-api/article/media-suite`,
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data", // Important for file uploads
-          },
-        }
-      );
+      if (htmlContent && title && category && country && type && articleImage) {
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/news-api/article/media-suite`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data", // Important for file uploads
+            },
+          }
+        );
 
-      if (response.status === 201) {
-        toast({
-          title: "Success",
-          description: "Article published successfully",
-        });
-        return;
+        if (response.status === 201) {
+          toast({
+            title: "Success",
+            description: "Article published successfully",
+          });
+          return;
+        } else {
+          throw new Error("Publishing failed");
+        }
       } else {
-        throw new Error("Publishing failed");
+        toast({
+          title: "Publishing failed",
+          description: "Please fill in all fields",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error("Error uploading to Media Suite:", error);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,16 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import {
-  Loader2,
-  Sparkles,
-  Send,
-  Edit3,
-  CheckCircle,
-  Globe,
-  Calendar,
-  Clock,
-} from "lucide-react";
+import { Loader2, Sparkles, Send, Edit3, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import type { AnyBlock } from "@/types/editor";
 import { PlatformMediaUpload } from "@/components/PlatformMediaUpload";
@@ -72,10 +63,11 @@ export function PublishingHubModal({
   const [isScheduled, setIsScheduled] = useState(false);
   const [scheduleDate, setScheduleDate] = useState("");
   const [scheduleTime, setScheduleTime] = useState("");
+
   const { toast } = useToast();
 
   // Convert blocks to plain text for AI processing
-  const getArticleContent = () => {
+  const getArticleContent = useCallback(() => {
     return blocks
       .map((block) => {
         switch (block.type) {
@@ -90,14 +82,14 @@ export function PublishingHubModal({
         }
       })
       .join(" ");
-  };
+  }, [blocks]);
 
   // Get platform names for selected platforms
-  const getSelectedPlatformNames = () => {
+  const getSelectedPlatformNames = useCallback(() => {
     return selectedPlatforms
       .map((id) => platformMap[id as keyof typeof platformMap])
       .filter(Boolean);
-  };
+  }, [selectedPlatforms]);
 
   // Initialize social content with excerpts for selected platforms
   useEffect(() => {
@@ -114,7 +106,12 @@ export function PublishingHubModal({
 
       setSocialContent(initialContent);
     }
-  }, [selectedPlatforms, hasOptimized]);
+  }, [
+    selectedPlatforms,
+    hasOptimized,
+    getArticleContent,
+    getSelectedPlatformNames,
+  ]);
 
   // Optimize content for social media using AI
   const handleOptimizeForSocial = async () => {
@@ -375,21 +372,6 @@ export function PublishingHubModal({
                       Your content will be published to Globalist.live. You can
                       also share it on social platforms for wider reach.
                     </p>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Button
-                      variant="outline"
-                      onClick={() => onOpenChange(false)}
-                      className="w-full sm:w-auto"
-                    >
-                      Publish to Globalist.live Only
-                    </Button>
-                    <Button
-                      onClick={() => onOpenChange(false)}
-                      className="w-full sm:w-auto"
-                    >
-                      Select Platforms & Continue
-                    </Button>
                   </div>
                 </div>
               </CardContent>
