@@ -9,7 +9,10 @@ interface UseBlockManagerProps {
   onContentChange?: (blocks: AnyBlock[]) => void;
 }
 
-export function useBlockManager({ initialBlocks = [], onContentChange }: UseBlockManagerProps) {
+export function useBlockManager({
+  initialBlocks = [],
+  onContentChange,
+}: UseBlockManagerProps) {
   // Debouncing setup
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastBlocksRef = useRef<AnyBlock[]>(initialBlocks);
@@ -31,6 +34,23 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
     }
     return true;
   }
+
+  // Helper: safely call onContentChange asynchronously
+  const safeContentChange = useCallback(
+    (newBlocks: AnyBlock[]) => {
+      if (
+        onContentChange &&
+        !areBlocksEqual(lastBlocksRef.current, newBlocks)
+      ) {
+        lastBlocksRef.current = newBlocks;
+        // Use setTimeout to ensure this happens after the current render cycle
+        setTimeout(() => {
+          onContentChange(newBlocks);
+        }, 0);
+      }
+    },
+    [onContentChange]
+  );
 
   const [editorState, setEditorState] = useState<EditorState>({
     blocks: initialBlocks.length > 0 ? initialBlocks : [], // Don't create default block
@@ -58,41 +78,52 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
     };
   }, []);
 
-  const createBlock = useCallback((type: AnyBlock["type"]): AnyBlock => {
-    const baseBlock = {
-      id: uuidv4(),
-      order: editorState.blocks.length,
-    };
+  const createBlock = useCallback(
+    (type: AnyBlock["type"]): AnyBlock => {
+      const baseBlock = {
+        id: uuidv4(),
+        order: editorState.blocks.length,
+      };
 
-    switch (type) {
-      case "text":
-        return { ...baseBlock, type: "text", content: { text: "", html: "" } };
-      case "heading":
-        return {
-          ...baseBlock,
-          type: "heading",
-          content: { text: "", level: 1 },
-        };
-      case "image":
-        return { ...baseBlock, type: "image", content: { url: "", alt: "" } };
-      case "video":
-        return { ...baseBlock, type: "video", content: { url: "" } };
-      case "audio":
-        return { ...baseBlock, type: "audio", content: { url: "", title: "", artist: "" } };
-      case "embed":
-        return { ...baseBlock, type: "embed", content: { url: "" } };
-      case "quote":
-        return { ...baseBlock, type: "quote", content: { text: "" } };
-      case "list":
-        return {
-          ...baseBlock,
-          type: "list",
-          content: { items: [""], ordered: false },
-        };
-      default:
-        return createTextBlock();
-    }
-  }, [editorState.blocks.length]);
+      switch (type) {
+        case "text":
+          return {
+            ...baseBlock,
+            type: "text",
+            content: { text: "", html: "" },
+          };
+        case "heading":
+          return {
+            ...baseBlock,
+            type: "heading",
+            content: { text: "", level: 1 },
+          };
+        case "image":
+          return { ...baseBlock, type: "image", content: { url: "", alt: "" } };
+        case "video":
+          return { ...baseBlock, type: "video", content: { url: "" } };
+        case "audio":
+          return {
+            ...baseBlock,
+            type: "audio",
+            content: { url: "", title: "", artist: "" },
+          };
+        case "embed":
+          return { ...baseBlock, type: "embed", content: { url: "" } };
+        case "quote":
+          return { ...baseBlock, type: "quote", content: { text: "" } };
+        case "list":
+          return {
+            ...baseBlock,
+            type: "list",
+            content: { items: [""], ordered: false },
+          };
+        default:
+          return createTextBlock();
+      }
+    },
+    [editorState.blocks.length]
+  );
 
   const updateBlock = useCallback(
     (blockId: string, content: any) => {
@@ -100,23 +131,20 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
         const newBlocks = prev.blocks.map((block) =>
           block.id === blockId ? { ...block, content } : block
         );
-        
+
         // Debounce the onContentChange callback
         if (debounceTimeoutRef.current) {
           clearTimeout(debounceTimeoutRef.current);
         }
-        
+
         debounceTimeoutRef.current = setTimeout(() => {
-          if (onContentChange && !areBlocksEqual(lastBlocksRef.current, newBlocks)) {
-            lastBlocksRef.current = newBlocks;
-            onContentChange(newBlocks);
-          }
+          safeContentChange(newBlocks);
         }, 300); // 300ms debounce delay
-        
+
         return { ...prev, blocks: newBlocks };
       });
     },
-    [onContentChange]
+    [safeContentChange]
   );
 
   const addBlock = useCallback(
@@ -141,12 +169,9 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
           ...block,
           order: index,
         }));
-        
-        // Immediate callback for structural changes
-        if (onContentChange) {
-          lastBlocksRef.current = newBlocks;
-          onContentChange(newBlocks);
-        }
+
+        // Use safeContentChange for structural changes
+        safeContentChange(newBlocks);
 
         return {
           ...prev,
@@ -155,7 +180,7 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
         };
       });
     },
-    [onContentChange, createBlock]
+    [safeContentChange, createBlock]
   );
 
   const deleteBlock = useCallback(
@@ -168,12 +193,9 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
           ...block,
           order: index,
         }));
-        
-        // Immediate callback for structural changes
-        if (onContentChange) {
-          lastBlocksRef.current = reorderedBlocks;
-          onContentChange(reorderedBlocks);
-        }
+
+        // Use safeContentChange for structural changes
+        safeContentChange(reorderedBlocks);
 
         return {
           ...prev,
@@ -182,7 +204,7 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
         };
       });
     },
-    [onContentChange]
+    [safeContentChange]
   );
 
   const reorderBlocks = useCallback(
@@ -197,17 +219,14 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
           ...block,
           order: index,
         }));
-        
-        // Immediate callback for structural changes
-        if (onContentChange) {
-          lastBlocksRef.current = reorderedBlocks;
-          onContentChange(reorderedBlocks);
-        }
+
+        // Use safeContentChange for structural changes
+        safeContentChange(reorderedBlocks);
 
         return { ...prev, blocks: reorderedBlocks };
       });
     },
-    [onContentChange]
+    [safeContentChange]
   );
 
   const selectBlock = useCallback((blockId: string | null) => {
@@ -223,10 +242,8 @@ export function useBlockManager({ initialBlocks = [], onContentChange }: UseBloc
     if (debounceTimeoutRef.current) {
       clearTimeout(debounceTimeoutRef.current);
     }
-    if (onContentChange) {
-      onContentChange(editorState.blocks);
-    }
-  }, [onContentChange, editorState.blocks]);
+    safeContentChange(editorState.blocks);
+  }, [safeContentChange, editorState.blocks]);
 
   return {
     editorState,

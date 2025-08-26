@@ -57,6 +57,7 @@ export function StreamlinedEditor({
   const [type, setType] = useState("");
   const [blocks, setBlocks] = useState<AnyBlock[]>(initialBlocks);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [countries, setCountries] = useState<
     { label: string; value: string }[]
@@ -108,7 +109,15 @@ export function StreamlinedEditor({
     }, 300); // Debounce to prevent excessive updates
 
     return () => clearTimeout(timeoutId);
-  }, [title, blocks, onContentChange]);
+  }, [
+    title,
+    blocks,
+    selectedCategory,
+    selectedCountry,
+    type,
+    imageBase64,
+    onContentChange,
+  ]);
 
   // Fetch categories
   const getAllCategories = async () => {
@@ -187,7 +196,8 @@ export function StreamlinedEditor({
     onPreview?.(title, blocks);
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
+    setIsPublishing(true);
     if (!title.trim()) {
       toast({
         title: "Title Required",
@@ -196,7 +206,18 @@ export function StreamlinedEditor({
       });
       return;
     }
-    onPublish?.();
+    try {
+      await onPublish?.();
+    } catch (error) {
+      console.error("Publish failed:", error);
+      toast({
+        title: "Publish Failed",
+        description: "Failed to publish your content. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const getWordCount = () => {
@@ -253,13 +274,30 @@ export function StreamlinedEditor({
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={handlePreview} disabled={!title.trim()}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreview}
+                  disabled={!title.trim()}
+                >
                   <Eye className="h-4 w-4 mr-2" />
                   Preview
                 </Button>
-                <Button size="sm" onClick={handleSave} disabled={isSaving || !title.trim()}>
+                <Button
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={isSaving || !title.trim()}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   {isSaving ? "Saving..." : "Save"}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handlePublish}
+                  disabled={isPublishing || !title.trim()}
+                >
+                  <Send className="h-4 w-4 mr-2" />
+                  {isPublishing ? "Publishing..." : "Publish"}
                 </Button>
               </div>
             </div>
@@ -279,10 +317,8 @@ export function StreamlinedEditor({
             />
           </Card>
 
-
           {/* Editor Canvas */}
           <Card className="p-4 sm:p-6 min-h-[400px] w-full mb-6">
-
             <EditorCanvas
               initialBlocks={blocks}
               onContentChange={setBlocks}
