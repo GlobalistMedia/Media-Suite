@@ -21,7 +21,6 @@ import {
   Search,
   X,
   Loader2,
-  Copy,
 } from "lucide-react";
 import {
   parseAIBlocks,
@@ -86,6 +85,10 @@ function renderResult({
   onDraftIdea,
   onInsertBlocks,
   setOpen,
+  seoHeadline,
+  setSeoHeadline,
+  selectedKeywords,
+  setSelectedKeywords,
 }: {
   selectedTool: string | null;
   result: any;
@@ -94,8 +97,18 @@ function renderResult({
   onDraftIdea: (idea: any) => void;
   onInsertBlocks?: (blocks: any[]) => void;
   setOpen: (open: boolean) => void;
+  seoHeadline: string;
+  setSeoHeadline: React.Dispatch<React.SetStateAction<string>>;
+  selectedKeywords: string[];
+  setSelectedKeywords: React.Dispatch<React.SetStateAction<string[]>>;
 }) {
-  if (!result) return null;
+  if (!result || !selectedTool) return null;
+
+  // Safety check: ensure the result is for the current tool
+  if (result.tool && result.tool !== selectedTool) {
+    return null;
+  }
+
   const { content, usageStats } = parseAIResponse(selectedTool, result);
   // Usage stats display
   const usageStatsDisplay = usageStats ? (
@@ -152,7 +165,7 @@ function renderResult({
                   {copiedKey === "idea-" + idx ? (
                     <span className="text-xs">Copied!</span>
                   ) : (
-                    <Copy className="h-4 w-4" />
+                    <span className="text-xs">Copy</span>
                   )}
                 </Button>
               </div>
@@ -168,45 +181,116 @@ function renderResult({
       <div>
         {usageStatsDisplay}
         <div className="space-y-4">
-          {Object.entries(content).map(([key, value]) => (
-            <Card key={key} className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="font-semibold capitalize">{key}</span>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      Array.isArray(value)
-                        ? value.join(", ")
-                        : (value as string)
-                    );
-                    setCopiedKey(key);
-                    setTimeout(() => setCopiedKey(null), 1500);
-                  }}
-                >
-                  {copiedKey === key ? (
-                    <span className="text-xs">Copied!</span>
-                  ) : (
-                    <Copy className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-              {Array.isArray(value) ? (
-                <ul className="list-disc pl-5 text-sm">
-                  {value.map((v, i) => (
-                    <li key={i}>{v}</li>
-                  ))}
-                </ul>
-              ) : (
-                <Textarea
-                  value={value as string}
-                  readOnly
-                  className="min-h-[40px]"
-                />
-              )}
-            </Card>
-          ))}
+          {Object.entries(content).map(([key, value]) => {
+            // Special handling for suggested headlines
+            if (key === "suggestedHeadlines" && Array.isArray(value)) {
+              return (
+                <Card key={key} className="p-4">
+                  <div className="mb-3">
+                    <span className="font-semibold capitalize">
+                      Suggested Headlines
+                    </span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Select a headline or enter your own below
+                    </p>
+                  </div>
+                  <div className="space-y-2 mb-3">
+                    {value.map((headline, i) => (
+                      <label
+                        key={i}
+                        className="flex items-center space-x-2 cursor-pointer"
+                      >
+                        <input
+                          type="radio"
+                          name="suggestedHeadline"
+                          value={headline}
+                          onChange={(e) => setSeoHeadline(e.target.value)}
+                          checked={seoHeadline === headline}
+                          className="text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm">{headline}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Or enter your own headline:
+                    </label>
+                    <Input
+                      placeholder="Enter custom headline..."
+                      value={seoHeadline}
+                      onChange={(e) => setSeoHeadline(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                </Card>
+              );
+            }
+
+            // Special handling for keywords
+            if (key === "keywords" && Array.isArray(value)) {
+              return (
+                <Card key={key} className="p-4">
+                  <div className="mb-3">
+                    <span className="font-semibold capitalize">Keywords</span>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Select keywords to use in your content
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {value.map((keyword, i) => (
+                      <label
+                        key={i}
+                        className="flex items-center space-x-2 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          value={keyword}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedKeywords((prev: string[]) => [
+                                ...prev,
+                                keyword,
+                              ]);
+                            } else {
+                              setSelectedKeywords((prev: string[]) =>
+                                prev.filter((k: string) => k !== keyword)
+                              );
+                            }
+                          }}
+                          checked={selectedKeywords.includes(keyword)}
+                          className="text-primary focus:ring-primary"
+                        />
+                        <span className="text-sm">{keyword}</span>
+                      </label>
+                    ))}
+                  </div>
+                </Card>
+              );
+            }
+
+            // Default rendering for other fields
+            return (
+              <Card key={key} className="p-4">
+                <div className="mb-2">
+                  <span className="font-semibold capitalize">{key}</span>
+                </div>
+                {Array.isArray(value) ? (
+                  <ul className="list-disc pl-5 text-sm">
+                    {value.map((v, i) => (
+                      <li key={i}>{v}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <Textarea
+                    value={value as string}
+                    readOnly
+                    className="min-h-[40px]"
+                  />
+                )}
+              </Card>
+            );
+          })}
         </div>
       </div>
     );
@@ -258,7 +342,7 @@ function renderResult({
                 {copiedKey === "text" ? (
                   <span className="text-xs">Copied!</span>
                 ) : (
-                  <Copy className="h-4 w-4" />
+                  <span className="text-xs">Copy</span>
                 )}
               </Button>
             </div>
@@ -304,6 +388,7 @@ export function AIAssistantModal({
   const [creationTone, setCreationTone] = useState("");
   const [improverModes, setImproverModes] = useState<string[]>([]);
   const [seoHeadline, setSeoHeadline] = useState("");
+  const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<any>(null);
@@ -320,6 +405,7 @@ export function AIAssistantModal({
     setCreationTone("");
     setImproverModes([]);
     setSeoHeadline("");
+    setSelectedKeywords([]);
     setResult(null);
     setError(null);
     setLoading(false);
@@ -615,7 +701,14 @@ export function AIAssistantModal({
               <Button
                 key={tool.id}
                 variant={selectedTool === tool.id ? "default" : "outline"}
-                onClick={() => setSelectedTool(tool.id)}
+                onClick={() => {
+                  setSelectedTool(tool.id);
+                  // Clear result when switching tools to prevent rendering mismatches
+                  setResult(null);
+                  setError(null);
+                  setCopiedKey(null);
+                  setSelectedKeywords([]);
+                }}
                 className="flex flex-col items-center gap-1 min-w-[90px] px-2 py-2"
               >
                 <Icon className="h-5 w-5 mb-1" />
@@ -652,6 +745,10 @@ export function AIAssistantModal({
                 onDraftIdea: handleDraftIdea,
                 onInsertBlocks,
                 setOpen,
+                seoHeadline,
+                setSeoHeadline,
+                selectedKeywords,
+                setSelectedKeywords,
               })}
             </div>
           )}
