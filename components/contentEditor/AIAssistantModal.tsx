@@ -95,7 +95,13 @@ function renderResult({
   onInsertBlocks?: (blocks: any[]) => void;
   setOpen: (open: boolean) => void;
 }) {
-  if (!result) return null;
+  if (!result || !selectedTool) return null;
+
+  // Safety check: ensure the result is for the current tool
+  if (result.tool && result.tool !== selectedTool) {
+    return null;
+  }
+
   const { content, usageStats } = parseAIResponse(selectedTool, result);
   // Usage stats display
   const usageStatsDisplay = usageStats ? (
@@ -615,7 +621,13 @@ export function AIAssistantModal({
               <Button
                 key={tool.id}
                 variant={selectedTool === tool.id ? "default" : "outline"}
-                onClick={() => setSelectedTool(tool.id)}
+                onClick={() => {
+                  setSelectedTool(tool.id);
+                  // Clear result when switching tools to prevent rendering mismatches
+                  setResult(null);
+                  setError(null);
+                  setCopiedKey(null);
+                }}
                 className="flex flex-col items-center gap-1 min-w-[90px] px-2 py-2"
               >
                 <Icon className="h-5 w-5 mb-1" />
