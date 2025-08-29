@@ -5,6 +5,7 @@ import { EditorCanvas } from "./EditorCanvas";
 import { AIAssistantModal } from "./AIAssistantModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +20,6 @@ import {
 } from "@/components/ui/select";
 import { Country } from "country-state-city"; // Import country library
 import axios from "axios";
-import { set } from "mongoose";
 
 interface User {
   isPremium: boolean;
@@ -37,7 +37,12 @@ interface StreamlinedEditorProps {
     category: string[],
     country: string[],
     type: string,
-    imageBase64: string | null
+    imageBase64: string | null,
+    seoData?: {
+      headline: string;
+      keywords: string[];
+      metaDescription: string;
+    }
   ) => void;
   initialTitle?: string;
   initialBlocks?: AnyBlock[];
@@ -70,6 +75,11 @@ export function StreamlinedEditor({
   const [imagePreview, setImagePreview] = useState<string | null>(null); // Image preview state
   const [imageBase64, setImageBase64] = useState<any | null>(null as any); // Image base64 string state
 
+  // SEO data state
+  const [seoHeadline, setSeoHeadline] = useState<string>("");
+  const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
+  const [seoMetaDescription, setSeoMetaDescription] = useState<string>("");
+
   const { toast } = useToast();
 
   // Function to handle image upload and convert it to base64
@@ -90,6 +100,29 @@ export function StreamlinedEditor({
     }
   };
 
+  // Function to handle SEO data insertion from AI Assistant
+  const handleSeoDataInsert = (seoData: {
+    headline: string;
+    keywords: string[];
+    metaDescription: string;
+  }) => {
+    console.log("=== handleSeoDataInsert called in StreamlinedEditor ===");
+    console.log("SEO Data Inserted", seoData);
+    console.log("Function type:", typeof handleSeoDataInsert);
+
+    setSeoHeadline(seoData.headline);
+    setSeoKeywords(seoData.keywords);
+    setSeoMetaDescription(seoData.metaDescription);
+
+    toast({
+      title: "SEO Data Inserted",
+      description:
+        "SEO headline, keywords, and meta description have been added to your content.",
+    });
+
+    console.log("=== handleSeoDataInsert completed ===");
+  };
+
   // Update the onValueChange to handle multiple selections
   const handleCategoryChange = (value: string) => {
     setSelectedCategory([value]);
@@ -104,7 +137,12 @@ export function StreamlinedEditor({
         selectedCategory,
         [selectedCountry],
         type,
-        imageBase64
+        imageBase64,
+        {
+          headline: seoHeadline,
+          keywords: seoKeywords,
+          metaDescription: seoMetaDescription,
+        }
       );
     }, 300); // Debounce to prevent excessive updates
 
@@ -116,6 +154,9 @@ export function StreamlinedEditor({
     selectedCountry,
     type,
     imageBase64,
+    seoHeadline,
+    seoKeywords,
+    seoMetaDescription,
     onContentChange,
   ]);
 
@@ -422,6 +463,67 @@ export function StreamlinedEditor({
                   )}
                 </CardContent>
               </Card>
+
+              {/* SEO Data Display */}
+              {(seoHeadline ||
+                seoKeywords.length > 0 ||
+                seoMetaDescription) && (
+                <Card className="mb-6 p-4 sm:p-6">
+                  <CardHeader>
+                    <CardTitle className="text-lg">SEO Data</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {seoHeadline && (
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          SEO Headline
+                        </label>
+                        <Input
+                          value={seoHeadline}
+                          onChange={(e) => setSeoHeadline(e.target.value)}
+                          placeholder="SEO Headline"
+                          className="w-full"
+                        />
+                      </div>
+                    )}
+
+                    {seoKeywords.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Keywords
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {seoKeywords.map((keyword, index) => (
+                            <Badge
+                              key={index}
+                              variant="secondary"
+                              className="px-3 py-1"
+                            >
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {seoMetaDescription && (
+                      <div>
+                        <label className="block text-sm font-medium mb-2">
+                          Meta Description
+                        </label>
+                        <Textarea
+                          value={seoMetaDescription}
+                          onChange={(e) =>
+                            setSeoMetaDescription(e.target.value)
+                          }
+                          placeholder="Meta Description"
+                          className="w-full min-h-[80px]"
+                        />
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
           {/* Empty State */}
@@ -474,6 +576,11 @@ export function StreamlinedEditor({
             title: "AI Content Inserted",
             description: "The generated content has been added to your editor.",
           });
+        }}
+        onSeoDataInsert={(seoData) => {
+          console.log("=== onSeoDataInsert callback triggered ===");
+          console.log("Received SEO data:", seoData);
+          handleSeoDataInsert(seoData);
         }}
       />
     </div>
