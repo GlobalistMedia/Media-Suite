@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { EditorCanvas } from "./EditorCanvas";
 import { AIAssistantModal } from "./AIAssistantModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,27 @@ interface User {
   isPremium: boolean;
 }
 
+interface Subscriber {
+  id: string;
+  email: string;
+  name?: string;
+  status: "subscribed" | "unsubscribed";
+  subscribedAt: Date;
+  unsubscribedAt?: Date;
+  source?: string;
+}
+
+interface EmailList {
+  id: string;
+  name: string;
+  description: string;
+  status: "active" | "paused";
+  tags: string[];
+  createdAt: Date;
+  subscribers: Subscriber[];
+  subscriberCount: number;
+}
+
 interface StreamlinedEditorProps {
   user: User;
   platforms: number[];
@@ -38,6 +59,7 @@ interface StreamlinedEditorProps {
     country: string[],
     type: string,
     imageBase64: string | null,
+    emailListId?: string,
     seoData?: {
       headline: string;
       keywords: string[];
@@ -74,6 +96,8 @@ export function StreamlinedEditor({
   const [selectedCategory, setSelectedCategory] = useState<string[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null); // Image preview state
   const [imageBase64, setImageBase64] = useState<any | null>(null as any); // Image base64 string state
+  const [emailLists, setEmailLists] = useState<EmailList[]>([]); // Email lists state
+  const [selectedEmailList, setSelectedEmailList] = useState<string>(""); // Selected email list
 
   // SEO data state
   const [seoHeadline, setSeoHeadline] = useState<string>("");
@@ -138,6 +162,7 @@ export function StreamlinedEditor({
         [selectedCountry],
         type,
         imageBase64,
+        selectedEmailList,
         {
           headline: seoHeadline,
           keywords: seoKeywords,
@@ -154,6 +179,7 @@ export function StreamlinedEditor({
     selectedCountry,
     type,
     imageBase64,
+    selectedEmailList,
     seoHeadline,
     seoKeywords,
     seoMetaDescription,
@@ -161,7 +187,7 @@ export function StreamlinedEditor({
   ]);
 
   // Fetch categories
-  const getAllCategories = async () => {
+  const getAllCategories = useCallback(async () => {
     try {
       const { data } = await axios.get(
         `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/categories?page=1&perPage=9999`
@@ -183,9 +209,26 @@ export function StreamlinedEditor({
         variant: "destructive",
       });
     }
-  };
+  }, [toast]);
 
-  // Fetch countries and categories
+  // Load email settings from database
+  const loadEmailSettings = useCallback(async () => {
+    try {
+      const response = await axios.get("/api/settings");
+      if (response.data.success && response.data.data.emailSettings) {
+        const emailSettings = response.data.data.emailSettings;
+
+        // Load email lists
+        if (emailSettings.lists) {
+          setEmailLists(emailSettings.lists);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading email settings:", error);
+    }
+  }, []);
+
+  // Fetch countries, categories, and email lists
   useEffect(() => {
     const fetchedCountries = Country.getAllCountries().map((country) => ({
       label: country.name,
@@ -193,7 +236,8 @@ export function StreamlinedEditor({
     }));
     setCountries(fetchedCountries);
     getAllCategories();
-  }, []);
+    loadEmailSettings();
+  }, [getAllCategories, loadEmailSettings]);
 
   const handleSave = async () => {
     if (!title.trim()) {
@@ -432,6 +476,30 @@ export function StreamlinedEditor({
                       {categories.map((category) => (
                         <SelectItem key={category.value} value={category.value}>
                           {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </CardContent>
+              </Card>
+
+              {/* Email List Dropdown */}
+              <Card className="mb-6 p-4 sm:p-6">
+                <CardHeader>
+                  <CardTitle className="text-lg">Select Email List</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Select
+                    value={selectedEmailList}
+                    onValueChange={setSelectedEmailList}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an Email List" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {emailLists.map((list) => (
+                        <SelectItem key={list.id} value={list.id}>
+                          {list.name} ({list.subscriberCount} subscribers)
                         </SelectItem>
                       ))}
                     </SelectContent>
