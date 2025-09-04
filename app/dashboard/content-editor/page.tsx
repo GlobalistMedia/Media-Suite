@@ -523,6 +523,52 @@ export default function DistributionPage() {
           formData.append("subscriberEmails", JSON.stringify(subscriberEmails));
 
           console.log("Subscriber emails count:", subscriberEmails.length);
+
+          // Make the POST request
+          if (
+            htmlContent &&
+            title &&
+            category &&
+            country &&
+            type &&
+            articleImage
+          ) {
+            const response = await axios.post(
+              `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/news-api/article/media-suite`,
+              formData,
+              {
+                headers: {
+                  "Content-Type": "multipart/form-data", // Important for file uploads
+                },
+              }
+            );
+
+            if (response.status === 201) {
+              const successMessage = selectedEmailList
+                ? `Article published successfully to ${
+                    emailLists.find((list) => list.id === selectedEmailList)
+                      ?.name
+                  } (${
+                    emailLists.find((list) => list.id === selectedEmailList)
+                      ?.subscriberCount
+                  } subscribers)`
+                : "Article published successfully";
+
+              toast({
+                title: "Success",
+                description: successMessage,
+              });
+              return;
+            } else {
+              throw new Error("Publishing failed");
+            }
+          } else {
+            toast({
+              title: "Publishing failed",
+              description: "Please fill in all fields",
+              variant: "destructive",
+            });
+          }
         } else {
           toast({
             title: "Email List Not Found",
@@ -534,44 +580,12 @@ export default function DistributionPage() {
         }
       } else {
         console.log("No email list selected");
-      }
-
-      // Make the POST request
-      if (htmlContent && title && category && country && type && articleImage) {
-        const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/news-api/article/media-suite`,
-          formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data", // Important for file uploads
-            },
-          }
-        );
-
-        if (response.status === 201) {
-          const successMessage = selectedEmailList
-            ? `Article published successfully to ${
-                emailLists.find((list) => list.id === selectedEmailList)?.name
-              } (${
-                emailLists.find((list) => list.id === selectedEmailList)
-                  ?.subscriberCount
-              } subscribers)`
-            : "Article published successfully";
-
-          toast({
-            title: "Success",
-            description: successMessage,
-          });
-          return;
-        } else {
-          throw new Error("Publishing failed");
-        }
-      } else {
         toast({
           title: "Publishing failed",
-          description: "Please fill in all fields",
+          description: "Please select an email list",
           variant: "destructive",
         });
+        return;
       }
     } catch (error) {
       console.error("Error uploading to Media Suite:", error);
