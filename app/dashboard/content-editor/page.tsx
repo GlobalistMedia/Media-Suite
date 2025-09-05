@@ -27,14 +27,13 @@ interface Subscriber {
   id: string;
   email: string;
   name?: string;
-  status: "subscribed" | "unsubscribed";
   subscribedAt: Date;
   unsubscribedAt?: Date;
   source?: string;
 }
 
 interface EmailList {
-  id: string;
+  _id: string;
   name: string;
   description: string;
   status: "active" | "paused";
@@ -155,14 +154,17 @@ export default function DistributionPage() {
   const loadEmailLists = async () => {
     try {
       setIsLoadingEmailLists(true);
-      const response = await axios.get("/api/settings");
-      if (response.data.success && response.data.data.emailSettings) {
-        const emailSettings = response.data.data.emailSettings;
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=venomkr020@gmail.com&page=1&limit=10000`
+      );
+      console.log("response", response.data);
+      if (response.data.status === 200 && response.data.response.emails) {
+        const emailLists = response.data.response.emails;
 
         // Load email lists
-        if (emailSettings.lists) {
-          setEmailLists(emailSettings.lists);
-          console.log("Email lists loaded:", emailSettings.lists);
+        if (emailLists) {
+          setEmailLists(emailLists);
+          console.log("Email lists loaded:", emailLists);
         }
       }
     } catch (error) {
@@ -482,9 +484,9 @@ export default function DistributionPage() {
       formData.append("urlToImage", articleImage); // Assuming articleImage is a File object
 
       // Add selected email list data
-      if (selectedEmailList) {
+      if (selectedEmailList !== "clear") {
         const selectedList = emailLists.find(
-          (list) => list.id === selectedEmailList
+          (list) => list._id === selectedEmailList
         );
         if (selectedList) {
           console.log("Adding email list data:", {
@@ -495,9 +497,9 @@ export default function DistributionPage() {
           });
 
           // Check if email list has subscribers
-          const subscriberEmails = selectedList.subscribers
-            .filter((sub) => sub.status === "subscribed")
-            .map((sub) => sub.email);
+          const subscriberEmails = selectedList.subscribers.map(
+            (sub) => sub.email
+          );
 
           if (subscriberEmails.length === 0) {
             toast({
@@ -519,10 +521,6 @@ export default function DistributionPage() {
           }
 
           formData.append("emailListId", selectedEmailList);
-          formData.append("emailListName", selectedList.name);
-          formData.append("subscriberEmails", JSON.stringify(subscriberEmails));
-
-          console.log("Subscriber emails count:", subscriberEmails.length);
 
           // Make the POST request
           if (
@@ -546,10 +544,10 @@ export default function DistributionPage() {
             if (response.status === 201) {
               const successMessage = selectedEmailList
                 ? `Article published successfully to ${
-                    emailLists.find((list) => list.id === selectedEmailList)
+                    emailLists.find((list) => list._id === selectedEmailList)
                       ?.name
                   } (${
-                    emailLists.find((list) => list.id === selectedEmailList)
+                    emailLists.find((list) => list._id === selectedEmailList)
                       ?.subscriberCount
                   } subscribers)`
                 : "Article published successfully";
@@ -757,8 +755,18 @@ export default function DistributionPage() {
                     <SelectValue placeholder="Choose an email list..." />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="clear">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium text-muted-foreground">
+                          Clear selection
+                        </span>
+                        <span className="text-sm text-muted-foreground ml-2">
+                          (No email list)
+                        </span>
+                      </div>
+                    </SelectItem>
                     {emailLists.map((list) => (
-                      <SelectItem key={list.id} value={list.id}>
+                      <SelectItem key={list._id} value={list._id}>
                         <div className="flex items-center justify-between w-full">
                           <span className="font-medium">{list.name}</span>
                           <span className="text-sm text-muted-foreground ml-2">
@@ -774,7 +782,7 @@ export default function DistributionPage() {
                   <div className="p-3 bg-gray-50 rounded-lg">
                     {(() => {
                       const selectedList = emailLists.find(
-                        (list) => list.id === selectedEmailList
+                        (list) => list._id === selectedEmailList
                       );
                       return selectedList ? (
                         <div>
@@ -784,9 +792,7 @@ export default function DistributionPage() {
                             </h4>
                             {(() => {
                               const activeSubscribers =
-                                selectedList.subscribers.filter(
-                                  (sub) => sub.status === "subscribed"
-                                ).length;
+                                selectedList.subscriberCount;
 
                               if (selectedList.status === "paused") {
                                 return (
@@ -812,50 +818,30 @@ export default function DistributionPage() {
                           <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
                             <div>
                               <span className="font-medium">
-                                Active Subscribers:
-                              </span>{" "}
-                              {
-                                selectedList.subscribers.filter(
-                                  (sub) => sub.status === "subscribed"
-                                ).length
-                              }
-                            </div>
-                            <div>
-                              <span className="font-medium">
                                 Total Subscribers:
                               </span>{" "}
                               {selectedList.subscriberCount}
                             </div>
-                            <div>
-                              <span className="font-medium">Status:</span>{" "}
-                              {selectedList.status}
-                            </div>
-                            <div>
-                              <span className="font-medium">Created:</span>{" "}
-                              {new Date(
-                                selectedList.createdAt
-                              ).toLocaleDateString()}
-                            </div>
                           </div>
                           {selectedList.tags.length > 0 && (
-                            <div className="mt-2">
-                              <span className="font-medium text-xs">Tags:</span>{" "}
-                              <span className="text-xs text-muted-foreground">
-                                {selectedList.tags.join(", ")}
-                              </span>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              <span className="font-medium">Tags:</span>{" "}
+                              <span>{selectedList.tags.join(", ")}</span>
                             </div>
                           )}
                           {selectedList.description && (
                             <p className="text-xs text-muted-foreground mt-2">
+                              <span className="font-medium">Description:</span>{" "}
                               {selectedList.description}
                             </p>
                           )}
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <span className="font-medium">Created:</span>{" "}
+                            {new Date(
+                              selectedList.createdAt
+                            ).toLocaleDateString()}
+                          </div>
                           {(() => {
-                            const activeSubscribers =
-                              selectedList.subscribers.filter(
-                                (sub) => sub.status === "subscribed"
-                              ).length;
-
                             if (selectedList.status === "paused") {
                               return (
                                 <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-800">
@@ -863,7 +849,7 @@ export default function DistributionPage() {
                                   used for publishing.
                                 </div>
                               );
-                            } else if (activeSubscribers === 0) {
+                            } else if (selectedList.subscriberCount === 0) {
                               return (
                                 <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
                                   ⚠️ This email list has no active subscribers
