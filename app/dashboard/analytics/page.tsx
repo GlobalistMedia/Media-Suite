@@ -266,13 +266,45 @@ export default function AnalyticsPage() {
 
       {/* Main Analytics Tabs */}
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className={`grid w-full border-b p-1 gap-2 gap-y-4 ${tabGridClass}`}>
-          <TabsTrigger value="overview" className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md">Overview</TabsTrigger>
-          <TabsTrigger value="platforms" className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md">Platforms</TabsTrigger>
-          <TabsTrigger value="content" className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md">Content</TabsTrigger>
-          <TabsTrigger value="audience" className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md">Audience</TabsTrigger>
-          <TabsTrigger value="engagement" className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md">Engagement</TabsTrigger>
-          <TabsTrigger value="growth" className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md">Growth</TabsTrigger>
+        <TabsList
+          className={`grid w-full border-b p-1 gap-2 gap-y-4 ${tabGridClass}`}
+        >
+          <TabsTrigger
+            value="overview"
+            className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md"
+          >
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="platforms"
+            className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md"
+          >
+            Platforms
+          </TabsTrigger>
+          <TabsTrigger
+            value="content"
+            className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md"
+          >
+            Content
+          </TabsTrigger>
+          <TabsTrigger
+            value="audience"
+            className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md"
+          >
+            Audience
+          </TabsTrigger>
+          <TabsTrigger
+            value="engagement"
+            className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md"
+          >
+            Engagement
+          </TabsTrigger>
+          <TabsTrigger
+            value="growth"
+            className="text-xs md:text-sm rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-md"
+          >
+            Growth
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
