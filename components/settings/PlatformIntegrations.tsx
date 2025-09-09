@@ -57,24 +57,24 @@ export function PlatformIntegrations() {
       description:
         "Connect your LinkedIn profile to share professional content",
     },
-    {
-      platformId: "instagram",
-      name: "Instagram",
-      icon: Instagram,
-      description: "Connect your Instagram account to share photos and stories",
-    },
+    // {
+    //   platformId: "instagram",
+    //   name: "Instagram",
+    //   icon: Instagram,
+    //   description: "Connect your Instagram account to share photos and stories",
+    // },
     // {
     //   platformId: "tiktok",
     //   name: "TikTok",
     //   icon: Video,
     //   description: "Connect your TikTok account to manage short-form videos",
     // },
-    // {
-    //   platformId: "youtube",
-    //   name: "YouTube",
-    //   icon: Youtube,
-    //   description: "Connect your YouTube channel to manage video content",
-    // },
+    {
+      platformId: "youtube",
+      name: "YouTube",
+      icon: Youtube,
+      description: "Connect your YouTube channel to manage video content",
+    },
     {
       platformId: "facebook",
       name: "Facebook",
@@ -147,7 +147,7 @@ export function PlatformIntegrations() {
     }
 
     let provider;
-    if (platformId === "google") {
+    if (platformId === "youtube") {
       provider = new firebase.auth.GoogleAuthProvider();
     } else if (platformId === "facebook") {
       provider = new firebase.auth.FacebookAuthProvider();
