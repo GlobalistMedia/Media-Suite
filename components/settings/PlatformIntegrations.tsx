@@ -44,12 +44,12 @@ export function PlatformIntegrations() {
 
   // Available platforms with their metadata
   const availablePlatforms = [
-    {
-      platformId: "X",
-      name: "X (Twitter)",
-      icon: Twitter,
-      description: "Connect your X account to schedule and manage tweets",
-    },
+    // {
+    //   platformId: "X",
+    //   name: "X (Twitter)",
+    //   icon: Twitter,
+    //   description: "Connect your X account to schedule and manage tweets",
+    // },
     {
       platformId: "linkedin",
       name: "LinkedIn",
@@ -57,30 +57,18 @@ export function PlatformIntegrations() {
       description:
         "Connect your LinkedIn profile to share professional content",
     },
-    // {
-    //   platformId: "instagram",
-    //   name: "Instagram",
-    //   icon: Instagram,
-    //   description: "Connect your Instagram account to share photos and stories",
-    // },
-    // {
-    //   platformId: "tiktok",
-    //   name: "TikTok",
-    //   icon: Video,
-    //   description: "Connect your TikTok account to manage short-form videos",
-    // },
     {
       platformId: "youtube",
       name: "YouTube",
       icon: Youtube,
       description: "Connect your YouTube channel to manage video content",
     },
-    {
-      platformId: "facebook",
-      name: "Facebook",
-      icon: Facebook,
-      description: "Connect your Facebook page to manage posts and engagement",
-    },
+    // {
+    //   platformId: "facebook",
+    //   name: "Facebook",
+    //   icon: Facebook,
+    //   description: "Connect your Facebook page to manage posts and engagement",
+    // },
     {
       platformId: "wordpress",
       name: "WordPress",
@@ -152,16 +140,11 @@ export function PlatformIntegrations() {
     } else if (platformId === "facebook") {
       provider = new firebase.auth.FacebookAuthProvider();
     } else if (platformId === "X") {
-      provider = new firebase.auth.TwitterAuthProvider(); // Adding Twitter OAuth provider
+      provider = new firebase.auth.TwitterAuthProvider();
     } else if (platformId === "linkedin") {
       // Redirect the user to LinkedIn OAuth login page if LinkedIn is selected
       const linkedinAuthUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_LINKEDIN_REDIRECT_URI}&state=randomstate&scope=r_liteprofile%20r_emailaddress`; // Add more scopes if needed
       window.location.href = linkedinAuthUrl;
-      return;
-    } else if (platformId === "instagram") {
-      // Handle Instagram OAuth redirect
-      const instagramAuthUrl = `https://api.instagram.com/oauth/authorize?client_id=${process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID}&redirect_uri=${process.env.NEXT_PUBLIC_INSTAGRAM_REDIRECT_URI}&scope=user_profile&response_type=code`;
-      window.location.href = instagramAuthUrl;
       return;
     }
 
