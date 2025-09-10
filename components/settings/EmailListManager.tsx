@@ -34,13 +34,10 @@ import {
   Download,
   Upload,
   Search,
-  Filter,
   UserPlus,
   UserMinus,
   X,
   FileText,
-  CheckCircle,
-  AlertCircle,
 } from "lucide-react";
 import axios from "axios";
 import {
@@ -50,19 +47,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
 
 interface Subscriber {
   id: string;
   email: string;
   name?: string;
-  source?: string;
 }
 
 interface EmailList {
   _id: string;
   name: string;
   description: string;
-  status: "active" | "paused";
   tags: string[];
   createdAt: Date;
   subscribers: Subscriber[];
@@ -70,6 +66,7 @@ interface EmailList {
 }
 
 export function EmailListManager() {
+  const { toast } = useToast();
   const [emailLists, setEmailLists] = useState<EmailList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -81,9 +78,6 @@ export function EmailListManager() {
   const [selectedList, setSelectedList] = useState<EmailList | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [subscriberSearchQuery, setSubscriberSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "paused">(
-    "all"
-  );
 
   // Import/Export state
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -170,9 +164,7 @@ export function EmailListManager() {
     const matchesSearch =
       list.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       list.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      filterStatus === "all" || list.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   // Filter subscribers based on search query and selected list
@@ -191,45 +183,85 @@ export function EmailListManager() {
   const handleCreateList = async () => {
     if (!newListData.name.trim()) return;
 
-    const newList: EmailList = {
-      _id: `list_${Date.now()}`,
-      name: newListData.name,
-      description: newListData.description,
-      status: "active",
-      tags: newListData.tags
-        .split(",")
-        .map((tag) => tag.trim())
-        .filter(Boolean),
-      createdAt: new Date(),
-      subscribers: [],
-      subscriberCount: 0,
-    };
+    setIsSaving(true);
+    try {
+      const newList: EmailList = {
+        _id: `list_${Date.now()}`,
+        name: newListData.name,
+        description: newListData.description,
+        tags: newListData.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        createdAt: new Date(),
+        subscribers: [],
+        subscriberCount: 0,
+      };
 
-    // If initial emails are provided, add them as subscribers
-    if (newListData.initialEmails.trim()) {
-      const emailLines = newListData.initialEmails
-        .split("\n")
-        .map((line) => line.trim())
-        .filter((line) => line && isValidEmail(line));
+      // If initial emails are provided, add them as subscribers
+      if (newListData.initialEmails.trim()) {
+        const emailLines = newListData.initialEmails
+          .split("\n")
+          .map((line) => line.trim())
+          .filter((line) => line && isValidEmail(line));
 
-      emailLines.forEach((email, index) => {
-        const subscriber: Subscriber = {
-          id: `sub_${Date.now()}_${index}`,
-          email: email,
-          name: email.split("@")[0], // Use email prefix as default name
-          source: "initial_import",
+        emailLines.forEach((email, index) => {
+          const subscriber: Subscriber = {
+            id: `sub_${Date.now()}_${index}`,
+            email: email,
+            name: email.split("@")[0], // Use email prefix as default name
+          };
+          newList.subscribers.push(subscriber);
+        });
+
+        newList.subscriberCount = newList.subscribers.length;
+      }
+
+      // Create the email list via API
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list`,
+        {
+          name: newList.name,
+          description: newList.description,
+          tags: newList.tags,
+          // status: newList.status,
+          emails: newList.subscribers.map((subscriber) => subscriber.email),
+          creatorEmail: "venomkr020@gmail.com", // Using the same email as in loadEmailSettings
+        }
+      );
+
+      if (response.data.message === "Emails added") {
+        // Update local state with the created list (including the actual ID from server)
+        const createdList = {
+          ...newList,
+          _id: response.data.response._id || newList._id,
         };
-        newList.subscribers.push(subscriber);
-      });
 
-      newList.subscriberCount = newList.subscribers.length;
+        const updatedLists = [...emailLists, createdList];
+        setEmailLists(updatedLists);
+
+        setNewListData({
+          name: "",
+          description: "",
+          tags: "",
+          initialEmails: "",
+        });
+        setNewListDialog(false);
+
+        console.log("Email list created successfully:", createdList);
+        toast({
+          title: "Email list created successfully",
+          description: "Email list created successfully",
+        });
+      } else {
+        throw new Error(response.data.message || "Failed to create email list");
+      }
+    } catch (error) {
+      console.error("Error creating email list:", error);
+      alert("Error creating email list. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
-
-    const updatedLists = [...emailLists, newList];
-    await saveEmailSettings(updatedLists);
-
-    setNewListData({ name: "", description: "", tags: "", initialEmails: "" });
-    setNewListDialog(false);
   };
 
   const handleEditList = async () => {
@@ -257,22 +289,6 @@ export function EmailListManager() {
 
   const handleDeleteList = async (listId: string) => {
     const updatedLists = emailLists.filter((list) => list._id !== listId);
-    await saveEmailSettings(updatedLists);
-  };
-
-  const toggleListStatus = async (listId: string) => {
-    const updatedLists = emailLists.map((list) =>
-      list._id === listId
-        ? {
-            ...list,
-            status:
-              list.status === "active"
-                ? "paused"
-                : ("active" as "active" | "paused"),
-          }
-        : list
-    );
-
     await saveEmailSettings(updatedLists);
   };
 
@@ -307,7 +323,10 @@ export function EmailListManager() {
     );
 
     if (existingSubscriber) {
-      alert("This email address is already subscribed to this list.");
+      toast({
+        title: "Error adding subscriber",
+        description: "This email address is already subscribed to this list.",
+      });
       return;
     }
 
@@ -316,70 +335,120 @@ export function EmailListManager() {
       email: newSubscriberData.email.toLowerCase().trim(), // Normalize email
       name:
         newSubscriberData.name?.trim() || newSubscriberData.email.split("@")[0],
-      source: "manual",
     };
 
-    const updatedLists = emailLists.map((list) =>
-      list._id === selectedList._id
-        ? {
-            ...list,
-            subscribers: [...list.subscribers, newSubscriber],
-            subscriberCount: list.subscriberCount + 1,
-          }
-        : list
-    );
-
     try {
-      await saveEmailSettings(updatedLists);
-
-      // Update selectedList to reflect changes
-      setSelectedList((prev) =>
-        prev
-          ? {
-              ...prev,
-              subscribers: [...prev.subscribers, newSubscriber],
-              subscriberCount: prev.subscriberCount + 1,
-            }
-          : null
+      // Add subscriber via API
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/add-subscriber`,
+        {
+          emailListId: selectedList._id,
+          subscriberEmail: newSubscriber.email,
+        }
       );
 
-      setNewSubscriberData({ email: "", name: "" });
-      setAddSubscriberDialog(false);
+      if (response.data.message === "Subscriber added") {
+        // Update local state with the new subscriber
+        const updatedLists = emailLists.map((list) =>
+          list._id === selectedList._id
+            ? {
+                ...list,
+                subscribers: [...list.subscribers, newSubscriber],
+                subscriberCount: list.subscriberCount + 1,
+              }
+            : list
+        );
+
+        setEmailLists(updatedLists);
+
+        // Update selectedList to reflect changes
+        setSelectedList((prev) =>
+          prev
+            ? {
+                ...prev,
+                subscribers: [...prev.subscribers, newSubscriber],
+                subscriberCount: prev.subscriberCount + 1,
+              }
+            : null
+        );
+
+        setNewSubscriberData({ email: "", name: "" });
+        setAddSubscriberDialog(false);
+
+        console.log("Subscriber added successfully:", newSubscriber);
+        toast({
+          title: "Subscriber added successfully",
+          description: "Subscriber added successfully",
+        });
+      } else {
+        throw new Error(response.data.message || "Failed to add subscriber");
+      }
     } catch (error) {
       console.error("Error adding subscriber:", error);
-      alert("Error adding subscriber. Please try again.");
+      toast({
+        title: "Error adding subscriber",
+        description: "Error adding subscriber. Please try again.",
+      });
     }
   };
 
-  const handleRemoveSubscriber = async (subscriberId: string) => {
+  const handleRemoveSubscriber = async (subscriberEmail: string) => {
     if (!selectedList) return;
 
-    const updatedLists = emailLists.map((list) =>
-      list._id === selectedList._id
-        ? {
-            ...list,
-            subscribers: list.subscribers.filter(
-              (sub) => sub.id !== subscriberId
-            ),
-            subscriberCount: Math.max(0, list.subscriberCount - 1),
-          }
-        : list
-    );
+    try {
+      // Remove subscriber via API
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/delete-subscriber`,
+        {
+          subscriberEmail: subscriberEmail,
+          emailListId: selectedList._id,
+        }
+      );
 
-    await saveEmailSettings(updatedLists);
+      if (response.data.message === "Subscriber deleted") {
+        // Update local state with the removed subscriber
+        const updatedLists = emailLists.map((list) =>
+          list._id === selectedList._id
+            ? {
+                ...list,
+                subscribers: list.subscribers.filter(
+                  (sub) => sub.email !== subscriberEmail
+                ),
+                subscriberCount: Math.max(0, list.subscriberCount - 1),
+              }
+            : list
+        );
 
-    // Update selectedList to reflect changes
-    setSelectedList((prev) =>
-      prev
-        ? {
-            ...prev,
-            subscribers: prev.subscribers.filter(
-              (sub) => sub.id !== subscriberId
-            ),
-            subscriberCount: Math.max(0, prev.subscriberCount - 1),
-          }
-        : null
-    );
+        setEmailLists(updatedLists);
+
+        // Update selectedList to reflect changes
+        setSelectedList((prev) =>
+          prev
+            ? {
+                ...prev,
+                subscribers: prev.subscribers.filter(
+                  (sub) => sub.email !== subscriberEmail
+                ),
+                subscriberCount: Math.max(0, prev.subscriberCount - 1),
+              }
+            : null
+        );
+
+        console.log("Subscriber removed successfully:", subscriberEmail);
+        toast({
+          title: "Subscriber removed successfully",
+          description: "Subscriber removed successfully",
+        });
+      } else {
+        throw new Error(response.data.message || "Failed to remove subscriber");
+      }
+    } catch (error) {
+      console.error("Error removing subscriber:", error);
+      toast({
+        title: "Error removing subscriber",
+        description: "Error removing subscriber. Please try again.",
+      });
+    }
   };
 
   const isValidEmail = (email: string) => {
@@ -429,7 +498,11 @@ export function EmailListManager() {
 
   const handleImportContacts = async () => {
     if (!importFile || !importTargetList) {
-      alert("Please select both a CSV file and a target list.");
+      toast({
+        title: "Missing information",
+        description: "Please select both a CSV file and a target list.",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -441,7 +514,11 @@ export function EmailListManager() {
       const parsedData = parseCsvData(csvText);
 
       if (parsedData.length === 0) {
-        alert("No valid email addresses found in the CSV file.");
+        toast({
+          title: "No valid emails found",
+          description: "No valid email addresses found in the CSV file.",
+          variant: "destructive",
+        });
         setIsImporting(false);
         return;
       }
@@ -454,7 +531,11 @@ export function EmailListManager() {
         (list) => list._id === importTargetList
       );
       if (!targetList) {
-        alert("Target list not found.");
+        toast({
+          title: "Target list not found",
+          description: "The selected target list could not be found.",
+          variant: "destructive",
+        });
         setIsImporting(false);
         return;
       }
@@ -474,14 +555,39 @@ export function EmailListManager() {
         if (existingSubscriber) {
           errors.push(`${email} - Already exists in list`);
         } else {
-          const newSubscriber: Subscriber = {
-            id: `sub_${Date.now()}_${i}`,
-            email: email,
-            name: name || email.split("@")[0],
-            source: "csv_import",
-          };
-          newSubscribers.push(newSubscriber);
-          successCount++;
+          try {
+            // Add subscriber via API
+            const response = await axios.post(
+              `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/add-subscriber`,
+              {
+                emailListId: importTargetList,
+                subscriberEmail: email,
+              }
+            );
+
+            if (response.data.message === "Subscriber added") {
+              const newSubscriber: Subscriber = {
+                id: `sub_${Date.now()}_${i}`,
+                email: email.toLowerCase(),
+                name: name || email.toLowerCase().split("@")[0],
+              };
+              newSubscribers.push(newSubscriber);
+              successCount++;
+            } else {
+              errors.push(
+                `${email} - Failed to add: ${
+                  response.data.message || "Unknown error"
+                }`
+              );
+            }
+          } catch (error: any) {
+            console.error(`Error adding subscriber ${email}:`, error);
+            errors.push(
+              `${email} - Failed to add: ${
+                error.response?.data?.message || "Network error"
+              }`
+            );
+          }
         }
 
         setImportProgress((prev) =>
@@ -507,7 +613,7 @@ export function EmailListManager() {
             : list
         );
 
-        await saveEmailSettings(updatedLists);
+        setEmailLists(updatedLists);
       }
 
       // Show completion message
@@ -520,13 +626,18 @@ export function EmailListManager() {
           fileInputRef.current.value = "";
         }
 
-        alert(
-          `Import completed! Added ${successCount} new subscribers. ${errors.length} duplicates/errors.`
-        );
+        toast({
+          title: "Import completed!",
+          description: `Added ${successCount} new subscribers. ${errors.length} duplicates/errors.`,
+        });
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Import error:", error);
-      alert("Error importing contacts. Please check your CSV format.");
+      toast({
+        title: "Error importing contacts",
+        description: "Please check your CSV format and try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsImporting(false);
     }
@@ -540,9 +651,7 @@ export function EmailListManager() {
     }
 
     // Prepare CSV data
-    const csvData: string[] = [
-      "List Name,Subscriber Email,Subscriber Name,Source",
-    ];
+    const csvData: string[] = ["List Name,Subscriber Email,Subscriber Name"];
 
     emailLists.forEach((list) => {
       if (list.subscribers && list.subscribers.length > 0) {
@@ -551,7 +660,6 @@ export function EmailListManager() {
             `"${list.name}"`,
             `"${subscriber.email}"`,
             `"${subscriber.name || ""}"`,
-            `"${subscriber.source || "unknown"}"`,
           ].join(",");
           csvData.push(row);
         });
@@ -695,9 +803,9 @@ export function EmailListManager() {
                   <Button
                     onClick={handleCreateList}
                     className="flex-1"
-                    disabled={!newListData.name.trim()}
+                    disabled={!newListData.name.trim() || isSaving}
                   >
-                    Create List
+                    {isSaving ? "Creating..." : "Create List"}
                   </Button>
                   <Button
                     variant="outline"
@@ -731,26 +839,8 @@ export function EmailListManager() {
             />
           </div>
           <div className="flex gap-2">
-            <Button
-              variant={filterStatus === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterStatus("all")}
-            >
+            <Button variant="default" size="sm">
               All ({emailLists.length})
-            </Button>
-            <Button
-              variant={filterStatus === "active" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterStatus("active")}
-            >
-              Active ({emailLists.filter((l) => l.status === "active").length})
-            </Button>
-            <Button
-              variant={filterStatus === "paused" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterStatus("paused")}
-            >
-              Paused ({emailLists.filter((l) => l.status === "paused").length})
             </Button>
           </div>
         </div>
@@ -762,11 +852,11 @@ export function EmailListManager() {
               <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No lists found</h3>
               <p className="text-muted-foreground mb-4">
-                {searchQuery || filterStatus !== "all"
+                {searchQuery
                   ? "Try adjusting your search or filter criteria"
                   : "Create your first email list to get started"}
               </p>
-              {!searchQuery && filterStatus === "all" && (
+              {!searchQuery && (
                 <Button onClick={() => setNewListDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First List
@@ -783,18 +873,6 @@ export function EmailListManager() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-semibold text-lg">{list.name}</h3>
-                      <Badge
-                        variant={
-                          list.status === "active" ? "default" : "secondary"
-                        }
-                        className={
-                          list.status === "active"
-                            ? "bg-black text-white"
-                            : "bg-gray-100 text-gray-800"
-                        }
-                      >
-                        {list.status}
-                      </Badge>
                     </div>
 
                     {/* Detailed Information - Similar to the dialog view */}
@@ -834,7 +912,6 @@ export function EmailListManager() {
                     >
                       <Users className="h-4 w-4" />
                     </Button>
-
                     <Button
                       variant="outline"
                       size="sm"
@@ -842,19 +919,6 @@ export function EmailListManager() {
                       title="Edit List"
                     >
                       <Edit className="h-4 w-4" />
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleListStatus(list._id)}
-                      title={
-                        list.status === "active"
-                          ? "Pause List"
-                          : "Activate List"
-                      }
-                    >
-                      {list.status === "active" ? "Pause" : "Activate"}
                     </Button>
 
                     <AlertDialog>
@@ -1085,60 +1149,59 @@ export function EmailListManager() {
                 </div>
               ) : (
                 <div className="divide-y">
-                  {filteredSubscribers.map((subscriber: Subscriber) => (
-                    <div
-                      key={subscriber.id}
-                      className="p-4 flex items-center justify-between hover:bg-gray-50"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <p className="font-medium">
-                            {subscriber.name || subscriber.email}
+                  {filteredSubscribers.map(
+                    (subscriber: Subscriber, index: number) => (
+                      <div
+                        key={index}
+                        className="p-4 flex items-center justify-between hover:bg-gray-50"
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="font-medium">
+                              {subscriber.name || subscriber.email}
+                            </p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {subscriber.email}
                           </p>
                         </div>
-                        <p className="text-sm text-muted-foreground">
-                          {subscriber.email}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {subscriber.source && `Source: ${subscriber.source}`}
-                        </p>
-                      </div>
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <UserMinus className="h-4 w-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>
-                              Remove Subscriber
-                            </AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to remove
-                              {subscriber.email} from this list? This action
-                              cannot be undone.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() =>
-                                handleRemoveSubscriber(subscriber.id)
-                              }
-                              className="bg-red-600 hover:bg-red-700"
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
                             >
-                              Remove Subscriber
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </div>
-                  ))}
+                              <UserMinus className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Remove Subscriber
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to remove
+                                {subscriber.email} from this list? This action
+                                cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() =>
+                                  handleRemoveSubscriber(subscriber.email)
+                                }
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Remove Subscriber
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    )
+                  )}
                 </div>
               )}
             </div>
@@ -1148,18 +1211,6 @@ export function EmailListManager() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-semibold text-lg">{selectedList.name}</h4>
-                  <Badge
-                    variant={
-                      selectedList.status === "active" ? "default" : "secondary"
-                    }
-                    className={
-                      selectedList.status === "active"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-orange-100 text-orange-800"
-                    }
-                  >
-                    {selectedList.status === "active" ? "Ready" : "Paused"}
-                  </Badge>
                 </div>
 
                 <div className="space-y-2 text-sm text-muted-foreground">
@@ -1463,13 +1514,6 @@ export function EmailListManager() {
             <p className="text-sm font-medium text-blue-800">Total Lists</p>
           </div>
 
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <p className="text-2xl font-bold text-green-600">
-              {emailLists.filter((l) => l.status === "active").length}
-            </p>
-            <p className="text-sm font-medium text-green-800">Active Lists</p>
-          </div>
-
           <div className="text-center p-4 bg-purple-50 rounded-lg">
             <p className="text-2xl font-bold text-purple-600">
               {emailLists
@@ -1479,13 +1523,6 @@ export function EmailListManager() {
             <p className="text-sm font-medium text-purple-800">
               Total Subscribers
             </p>
-          </div>
-
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <p className="text-2xl font-bold text-orange-600">
-              {emailLists.filter((l) => l.status === "paused").length}
-            </p>
-            <p className="text-sm font-medium text-orange-800">Paused Lists</p>
           </div>
         </div>
       </Card>
