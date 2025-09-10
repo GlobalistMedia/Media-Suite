@@ -44,12 +44,12 @@ export function PlatformIntegrations() {
 
   // Available platforms with their metadata
   const availablePlatforms = [
-    {
-      platformId: "twitter",
-      name: "X (Twitter)",
-      icon: Twitter,
-      description: "Connect your X account to schedule and manage tweets",
-    },
+    // {
+    //   platformId: "X",
+    //   name: "X (Twitter)",
+    //   icon: Twitter,
+    //   description: "Connect your X account to schedule and manage tweets",
+    // },
     {
       platformId: "linkedin",
       name: "LinkedIn",
@@ -58,29 +58,17 @@ export function PlatformIntegrations() {
         "Connect your LinkedIn profile to share professional content",
     },
     {
-      platformId: "instagram",
-      name: "Instagram",
-      icon: Instagram,
-      description: "Connect your Instagram account to share photos and stories",
-    },
-    {
-      platformId: "tiktok",
-      name: "TikTok",
-      icon: Video,
-      description: "Connect your TikTok account to manage short-form videos",
-    },
-    {
       platformId: "youtube",
       name: "YouTube",
       icon: Youtube,
       description: "Connect your YouTube channel to manage video content",
     },
-    {
-      platformId: "facebook",
-      name: "Facebook",
-      icon: Facebook,
-      description: "Connect your Facebook page to manage posts and engagement",
-    },
+    // {
+    //   platformId: "facebook",
+    //   name: "Facebook",
+    //   icon: Facebook,
+    //   description: "Connect your Facebook page to manage posts and engagement",
+    // },
     {
       platformId: "wordpress",
       name: "WordPress",
@@ -139,7 +127,6 @@ export function PlatformIntegrations() {
       return;
     }
 
-    // Check if the user is authenticated using Firebase (via email/password, for example)
     const sessionUser = session.user;
 
     if (!sessionUser) {
@@ -148,24 +135,31 @@ export function PlatformIntegrations() {
     }
 
     let provider;
-    if (platformId === "google") {
+    if (platformId === "youtube") {
       provider = new firebase.auth.GoogleAuthProvider();
     } else if (platformId === "facebook") {
       provider = new firebase.auth.FacebookAuthProvider();
+    } else if (platformId === "X") {
+      provider = new firebase.auth.TwitterAuthProvider();
+    } else if (platformId === "linkedin") {
+      // Redirect the user to LinkedIn OAuth login page if LinkedIn is selected
+      const linkedinAuthUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_LINKEDIN_REDIRECT_URI}&state=randomstate&scope=r_liteprofile%20r_emailaddress`; // Add more scopes if needed
+      window.location.href = linkedinAuthUrl;
+      return;
     }
 
     if (provider) {
       try {
-        // Trigger OAuth login via Firebase
+        // Trigger OAuth login via Firebase for other platforms (Google, Facebook, etc.)
         const result = await firebase.auth().signInWithPopup(provider);
         const linkedUser = result.user;
 
         console.log(`${platformId} account linked successfully:`, linkedUser);
 
-        // Prepare the platform data
         if (!linkedUser) {
           throw new Error("Linked user is null after linking social account.");
         }
+
         await new Promise((resolve) => setTimeout(resolve, 1500));
 
         // Get current settings first
@@ -195,19 +189,20 @@ export function PlatformIntegrations() {
           lastSync: new Date(),
           syncEnabled: true,
         };
+
         if (existingIndex >= 0) {
           updatedIntegrations[existingIndex] = platformData;
         } else {
           updatedIntegrations.push(platformData);
         }
 
-        // Use POST request to store the data in database
+        // Use POST request to store the data in the database
         const response = await axios.post("/api/settings", {
           platformIntegrations: updatedIntegrations,
         });
 
         if (response.data.success) {
-          await loadIntegrations(); // Reload to get updated data from database
+          await loadIntegrations(); // Reload to get updated data from the database
         } else {
           console.error("Database save failed:", response.data);
           alert("Failed to save connection to database. Please try again.");
@@ -222,6 +217,7 @@ export function PlatformIntegrations() {
       }
     }
   };
+
   const handleDisconnect = async (platformId: string) => {
     setActionLoading(platformId);
     try {

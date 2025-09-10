@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/hooks/use-toast";
@@ -13,7 +13,35 @@ import { PlatformSelector } from "@/components/platform-selector";
 import { Sparkles } from "lucide-react";
 import type { AnyBlock } from "@/types/editor";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import axios from "axios";
+
+// Email list interfaces (matching EmailListManager)
+interface Subscriber {
+  id: string;
+  email: string;
+  name?: string;
+  subscribedAt: Date;
+  unsubscribedAt?: Date;
+  source?: string;
+}
+
+interface EmailList {
+  _id: string;
+  name: string;
+  description: string;
+  status: "active" | "paused";
+  tags: string[];
+  createdAt: Date;
+  subscribers: Subscriber[];
+  subscriberCount: number;
+}
 
 // Platform mapping utility
 const platformMapping: Record<number, string> = {
@@ -40,6 +68,12 @@ export default function DistributionPage() {
   const [showPublishingHub, setShowPublishingHub] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Email list state
+  const [emailLists, setEmailLists] = useState<EmailList[]>([]);
+  const [isLoadingEmailLists, setIsLoadingEmailLists] = useState(true);
+  const [selectedEmailList, setSelectedEmailList] = useState<string>("");
+
   const router = useRouter();
   const { toast } = useToast();
   // saveAIContent was removed with the old AI Assistant. If you want to save, implement logic here or use another method.
@@ -51,6 +85,52 @@ export default function DistributionPage() {
     }
   }, [session, status]);
 
+  // Function to load existing post
+  const loadPost = useCallback(
+    async (postId: string) => {
+      try {
+        const response = await fetch(`/api/content/load?postId=${postId}`);
+
+        if (!response.ok) {
+          throw new Error("Failed to load post");
+        }
+
+        const postData = await response.json();
+
+        setTitle(postData.title);
+        setBlocks(postData.blocks);
+        setCurrentPostId(postData.id);
+        setIsEditing(true);
+
+        // Map backend platform names back to frontend IDs
+        const platformIds =
+          postData.platforms
+            ?.map((platformName: string) => {
+              const entry = Object.entries(platformMapping).find(
+                ([_, name]) => name.toLowerCase() === platformName
+              );
+              return entry ? parseInt(entry[0]) : null;
+            })
+            .filter((id: number | null) => id !== null) || [];
+
+        setSelectedPlatforms(platformIds);
+
+        toast({
+          title: "Post Loaded",
+          description: "Your post has been loaded successfully!",
+        });
+      } catch (error) {
+        console.error("Load error:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load post. Please try again.",
+          variant: "destructive",
+        });
+      }
+    },
+    [toast]
+  );
+
   // Load post from URL parameter if editing
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -61,7 +141,38 @@ export default function DistributionPage() {
         loadPost(postId);
       }
     }
+  }, [status, loadPost]);
+
+  // Load email lists from settings
+  useEffect(() => {
+    if (status === "authenticated") {
+      loadEmailLists();
+    }
   }, [status]);
+
+  // Function to load email lists (similar to EmailListManager)
+  const loadEmailLists = async () => {
+    try {
+      setIsLoadingEmailLists(true);
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=venomkr020@gmail.com&page=1&limit=10000`
+      );
+      console.log("response", response.data);
+      if (response.data.status === 200 && response.data.response.emails) {
+        const emailLists = response.data.response.emails;
+
+        // Load email lists
+        if (emailLists) {
+          setEmailLists(emailLists);
+          console.log("Email lists loaded:", emailLists);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading email lists:", error);
+    } finally {
+      setIsLoadingEmailLists(false);
+    }
+  };
 
   // Helper function to convert block to HTML content
   const convertBlockToHTML = (block: any) => {
@@ -350,7 +461,7 @@ export default function DistributionPage() {
       .join("");
 
     try {
-      console.log("articleImage", articleImage);
+      console.log("selectedEmailList", selectedEmailList);
 
       // Create a FormData object to send the file and other data
       const formData = new FormData();
@@ -372,33 +483,107 @@ export default function DistributionPage() {
       formData.append("author", session?.user?.email ?? "");
       formData.append("urlToImage", articleImage); // Assuming articleImage is a File object
 
-      // Make the POST request
-      if (htmlContent && title && category && country && type && articleImage) {
-        const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/news-api/article/media-suite`,
-          formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data", // Important for file uploads
-            },
-          }
+      // Add selected email list data
+      if (selectedEmailList !== "clear") {
+        const selectedList = emailLists.find(
+          (list) => list._id === selectedEmailList
         );
+        if (selectedList) {
+          console.log("Adding email list data:", {
+            id: selectedEmailList,
+            name: selectedList.name,
+            subscriberCount: selectedList.subscriberCount,
+            status: selectedList.status,
+          });
 
-        if (response.status === 201) {
+          // Check if email list has subscribers
+          const subscriberEmails = selectedList.subscribers.map(
+            (sub) => sub.email
+          );
+
+          if (subscriberEmails.length === 0) {
+            toast({
+              title: "Empty Email List",
+              description: `The selected email list "${selectedList.name}" has no active subscribers. Please select a different list or add subscribers first.`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          // Check if email list is paused
+          if (selectedList.status === "paused") {
+            toast({
+              title: "Email List Paused",
+              description: `The selected email list "${selectedList.name}" is currently paused. Please activate it or select a different list.`,
+              variant: "destructive",
+            });
+            return;
+          }
+
+          formData.append("emailListId", selectedEmailList);
+
+          // Make the POST request
+          if (
+            htmlContent &&
+            title &&
+            category &&
+            country &&
+            type &&
+            articleImage
+          ) {
+            const response = await axios.post(
+              `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/news-api/article/media-suite`,
+              formData,
+              {
+                headers: {
+                  "Content-Type": "multipart/form-data", // Important for file uploads
+                },
+              }
+            );
+
+            if (response.status === 201) {
+              const successMessage = selectedEmailList
+                ? `Article published successfully to ${
+                    emailLists.find((list) => list._id === selectedEmailList)
+                      ?.name
+                  } (${
+                    emailLists.find((list) => list._id === selectedEmailList)
+                      ?.subscriberCount
+                  } subscribers)`
+                : "Article published successfully";
+
+              toast({
+                title: "Success",
+                description: successMessage,
+              });
+              return;
+            } else {
+              throw new Error("Publishing failed");
+            }
+          } else {
+            toast({
+              title: "Publishing failed",
+              description: "Please fill in all fields",
+              variant: "destructive",
+            });
+          }
+        } else {
           toast({
-            title: "Success",
-            description: "Article published successfully",
+            title: "Email List Not Found",
+            description:
+              "The selected email list could not be found. Please refresh and try again.",
+            variant: "destructive",
           });
           return;
-        } else {
-          throw new Error("Publishing failed");
         }
       } else {
+        console.log("No email list selected");
         toast({
           title: "Publishing failed",
-          description: "Please fill in all fields",
+          description: "Please select an email list",
           variant: "destructive",
         });
+        return;
       }
     } catch (error) {
       console.error("Error uploading to Media Suite:", error);
@@ -497,49 +682,6 @@ export default function DistributionPage() {
     router.push("/pricing");
   };
 
-  // Function to load existing post
-  const loadPost = async (postId: string) => {
-    try {
-      const response = await fetch(`/api/content/load?postId=${postId}`);
-
-      if (!response.ok) {
-        throw new Error("Failed to load post");
-      }
-
-      const postData = await response.json();
-
-      setTitle(postData.title);
-      setBlocks(postData.blocks);
-      setCurrentPostId(postData.id);
-      setIsEditing(true);
-
-      // Map backend platform names back to frontend IDs
-      const platformIds =
-        postData.platforms
-          ?.map((platformName: string) => {
-            const entry = Object.entries(platformMapping).find(
-              ([_, name]) => name.toLowerCase() === platformName
-            );
-            return entry ? parseInt(entry[0]) : null;
-          })
-          .filter((id: number | null) => id !== null) || [];
-
-      setSelectedPlatforms(platformIds);
-
-      toast({
-        title: "Post Loaded",
-        description: "Your post has been loaded successfully!",
-      });
-    } catch (error) {
-      console.error("Load error:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load post. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-background w-full flex flex-col">
       <div className="w-full px-4 md:px-8 py-6 flex-1 flex flex-col">
@@ -581,6 +723,149 @@ export default function DistributionPage() {
               selectedPlatforms={selectedPlatforms}
               onPlatformToggle={handlePlatformToggle}
             />
+          </CardContent>
+        </Card>
+
+        {/* Email List Selector */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg">Select Email List</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {isLoadingEmailLists ? (
+              <div className="text-center py-4">
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-sm text-muted-foreground">
+                  Loading email lists...
+                </p>
+              </div>
+            ) : emailLists.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground">
+                  No email lists found. Create email lists in Settings first.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Select
+                  value={selectedEmailList}
+                  onValueChange={setSelectedEmailList}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose an email list..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="clear">
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-medium text-muted-foreground">
+                          Clear selection
+                        </span>
+                        <span className="text-sm text-muted-foreground ml-2">
+                          (No email list)
+                        </span>
+                      </div>
+                    </SelectItem>
+                    {emailLists.map((list) => (
+                      <SelectItem key={list._id} value={list._id}>
+                        <div className="flex items-center justify-between w-full">
+                          <span className="font-medium">{list.name}</span>
+                          <span className="text-sm text-muted-foreground ml-2">
+                            ({list.subscriberCount} subscribers)
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {selectedEmailList && (
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    {(() => {
+                      const selectedList = emailLists.find(
+                        (list) => list._id === selectedEmailList
+                      );
+                      return selectedList ? (
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-sm">
+                              {selectedList.name}
+                            </h4>
+                            {(() => {
+                              const activeSubscribers =
+                                selectedList.subscriberCount;
+
+                              if (selectedList.status === "paused") {
+                                return (
+                                  <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
+                                    Paused
+                                  </span>
+                                );
+                              } else if (activeSubscribers === 0) {
+                                return (
+                                  <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                                    Empty
+                                  </span>
+                                );
+                              } else {
+                                return (
+                                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                                    Ready
+                                  </span>
+                                );
+                              }
+                            })()}
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
+                            <div>
+                              <span className="font-medium">
+                                Total Subscribers:
+                              </span>{" "}
+                              {selectedList.subscriberCount}
+                            </div>
+                          </div>
+                          {selectedList.tags.length > 0 && (
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              <span className="font-medium">Tags:</span>{" "}
+                              <span>{selectedList.tags.join(", ")}</span>
+                            </div>
+                          )}
+                          {selectedList.description && (
+                            <p className="text-xs text-muted-foreground mt-2">
+                              <span className="font-medium">Description:</span>{" "}
+                              {selectedList.description}
+                            </p>
+                          )}
+                          <div className="mt-2 text-xs text-muted-foreground">
+                            <span className="font-medium">Created:</span>{" "}
+                            {new Date(
+                              selectedList.createdAt
+                            ).toLocaleDateString()}
+                          </div>
+                          {(() => {
+                            if (selectedList.status === "paused") {
+                              return (
+                                <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-800">
+                                  ⚠️ This email list is paused and cannot be
+                                  used for publishing.
+                                </div>
+                              );
+                            } else if (selectedList.subscriberCount === 0) {
+                              return (
+                                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
+                                  ⚠️ This email list has no active subscribers
+                                  and cannot be used for publishing.
+                                </div>
+                              );
+                            }
+                            return null;
+                          })()}
+                        </div>
+                      ) : null;
+                    })()}
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
