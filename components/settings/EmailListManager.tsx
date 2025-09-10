@@ -59,7 +59,6 @@ interface EmailList {
   _id: string;
   name: string;
   description: string;
-  status: "active" | "paused";
   tags: string[];
   createdAt: Date;
   subscribers: Subscriber[];
@@ -79,9 +78,6 @@ export function EmailListManager() {
   const [selectedList, setSelectedList] = useState<EmailList | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [subscriberSearchQuery, setSubscriberSearchQuery] = useState("");
-  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "paused">(
-    "all"
-  );
 
   // Import/Export state
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -168,9 +164,7 @@ export function EmailListManager() {
     const matchesSearch =
       list.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       list.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus =
-      filterStatus === "all" || list.status === filterStatus;
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
   // Filter subscribers based on search query and selected list
@@ -195,7 +189,6 @@ export function EmailListManager() {
         _id: `list_${Date.now()}`,
         name: newListData.name,
         description: newListData.description,
-        status: "active",
         tags: newListData.tags
           .split(",")
           .map((tag) => tag.trim())
@@ -296,22 +289,6 @@ export function EmailListManager() {
 
   const handleDeleteList = async (listId: string) => {
     const updatedLists = emailLists.filter((list) => list._id !== listId);
-    await saveEmailSettings(updatedLists);
-  };
-
-  const toggleListStatus = async (listId: string) => {
-    const updatedLists = emailLists.map((list) =>
-      list._id === listId
-        ? {
-            ...list,
-            status:
-              list.status === "active"
-                ? "paused"
-                : ("active" as "active" | "paused"),
-          }
-        : list
-    );
-
     await saveEmailSettings(updatedLists);
   };
 
@@ -862,26 +839,8 @@ export function EmailListManager() {
             />
           </div>
           <div className="flex gap-2">
-            <Button
-              variant={filterStatus === "all" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterStatus("all")}
-            >
+            <Button variant="default" size="sm">
               All ({emailLists.length})
-            </Button>
-            <Button
-              variant={filterStatus === "active" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterStatus("active")}
-            >
-              Active ({emailLists.filter((l) => l.status === "active").length})
-            </Button>
-            <Button
-              variant={filterStatus === "paused" ? "default" : "outline"}
-              size="sm"
-              onClick={() => setFilterStatus("paused")}
-            >
-              Paused ({emailLists.filter((l) => l.status === "paused").length})
             </Button>
           </div>
         </div>
@@ -893,11 +852,11 @@ export function EmailListManager() {
               <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No lists found</h3>
               <p className="text-muted-foreground mb-4">
-                {searchQuery || filterStatus !== "all"
+                {searchQuery
                   ? "Try adjusting your search or filter criteria"
                   : "Create your first email list to get started"}
               </p>
-              {!searchQuery && filterStatus === "all" && (
+              {!searchQuery && (
                 <Button onClick={() => setNewListDialog(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Create Your First List
@@ -914,18 +873,6 @@ export function EmailListManager() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-semibold text-lg">{list.name}</h3>
-                      <Badge
-                        variant={
-                          list.status === "active" ? "default" : "secondary"
-                        }
-                        className={
-                          list.status === "active"
-                            ? "bg-black text-white"
-                            : "bg-gray-100 text-gray-800"
-                        }
-                      >
-                        {list.status}
-                      </Badge>
                     </div>
 
                     {/* Detailed Information - Similar to the dialog view */}
@@ -965,7 +912,6 @@ export function EmailListManager() {
                     >
                       <Users className="h-4 w-4" />
                     </Button>
-
                     <Button
                       variant="outline"
                       size="sm"
@@ -973,19 +919,6 @@ export function EmailListManager() {
                       title="Edit List"
                     >
                       <Edit className="h-4 w-4" />
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleListStatus(list._id)}
-                      title={
-                        list.status === "active"
-                          ? "Pause List"
-                          : "Activate List"
-                      }
-                    >
-                      {list.status === "active" ? "Pause" : "Activate"}
                     </Button>
 
                     <AlertDialog>
@@ -1278,18 +1211,6 @@ export function EmailListManager() {
               <div className="bg-gray-50 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-semibold text-lg">{selectedList.name}</h4>
-                  <Badge
-                    variant={
-                      selectedList.status === "active" ? "default" : "secondary"
-                    }
-                    className={
-                      selectedList.status === "active"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-orange-100 text-orange-800"
-                    }
-                  >
-                    {selectedList.status === "active" ? "Ready" : "Paused"}
-                  </Badge>
                 </div>
 
                 <div className="space-y-2 text-sm text-muted-foreground">
@@ -1593,13 +1514,6 @@ export function EmailListManager() {
             <p className="text-sm font-medium text-blue-800">Total Lists</p>
           </div>
 
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <p className="text-2xl font-bold text-green-600">
-              {emailLists.filter((l) => l.status === "active").length}
-            </p>
-            <p className="text-sm font-medium text-green-800">Active Lists</p>
-          </div>
-
           <div className="text-center p-4 bg-purple-50 rounded-lg">
             <p className="text-2xl font-bold text-purple-600">
               {emailLists
@@ -1609,13 +1523,6 @@ export function EmailListManager() {
             <p className="text-sm font-medium text-purple-800">
               Total Subscribers
             </p>
-          </div>
-
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <p className="text-2xl font-bold text-orange-600">
-              {emailLists.filter((l) => l.status === "paused").length}
-            </p>
-            <p className="text-sm font-medium text-orange-800">Paused Lists</p>
           </div>
         </div>
       </Card>
