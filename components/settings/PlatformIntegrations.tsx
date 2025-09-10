@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
+import { getSession, signIn, signOut, useSession } from "next-auth/react";
 import {
   Twitter,
   Linkedin,
@@ -15,7 +16,10 @@ import {
   Video,
   Facebook,
 } from "lucide-react";
+import firebase from "../../lib/firebase";
 import axios from "axios";
+
+import { useRouter } from "next/navigation";
 
 interface PlatformConnection {
   platformId: string;
@@ -31,35 +35,27 @@ interface PlatformConnection {
 }
 
 export function PlatformIntegrations() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
   const [platforms, setPlatforms] = useState<PlatformConnection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Available platforms with their metadata
   const availablePlatforms = [
-    {
-      platformId: "X",
-      name: "X (Twitter)",
-      icon: Twitter,
-      description: "Connect your X account to schedule and manage tweets",
-    },
+    // {
+    //   platformId: "X",
+    //   name: "X (Twitter)",
+    //   icon: Twitter,
+    //   description: "Connect your X account to schedule and manage tweets",
+    // },
     {
       platformId: "linkedin",
       name: "LinkedIn",
       icon: Linkedin,
-      description: "Connect your LinkedIn profile to share professional content",
-    },
-    {
-      platformId: "instagram",
-      name: "Instagram",
-      icon: Instagram,
-      description: "Connect your Instagram account to share photos and stories",
-    },
-    {
-      platformId: "tiktok",
-      name: "TikTok",
-      icon: Video,
-      description: "Connect your TikTok account to manage short-form videos",
+      description:
+        "Connect your LinkedIn profile to share professional content",
     },
     {
       platformId: "youtube",
@@ -67,12 +63,12 @@ export function PlatformIntegrations() {
       icon: Youtube,
       description: "Connect your YouTube channel to manage video content",
     },
-    {
-      platformId: "facebook",
-      name: "Facebook",
-      icon: Facebook,
-      description: "Connect your Facebook page to manage posts and engagement",
-    },
+    // {
+    //   platformId: "facebook",
+    //   name: "Facebook",
+    //   icon: Facebook,
+    //   description: "Connect your Facebook page to manage posts and engagement",
+    // },
     {
       platformId: "wordpress",
       name: "WordPress",
@@ -84,7 +80,7 @@ export function PlatformIntegrations() {
   const loadIntegrations = async () => {
     try {
       const response = await axios.get("/api/settings");
-      
+
       if (response.data.success) {
         // Merge with available platforms metadata
         const integrations = availablePlatforms.map((platform) => {
@@ -110,7 +106,10 @@ export function PlatformIntegrations() {
         setPlatforms(integrations);
       }
     } catch (error) {
-      console.error("Error loading platform integrations from database:", error);
+      console.error(
+        "Error loading platform integrations from database:",
+        error
+      );
     } finally {
       setIsLoading(false);
     }
@@ -122,67 +121,109 @@ export function PlatformIntegrations() {
 
   const handleConnect = async (platformId: string) => {
     setActionLoading(platformId);
-    try {
-      
-      // Simulate connection delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Get current settings first
-      const currentResponse = await axios.get("/api/settings");
-      const currentSettings = currentResponse.data.data;
 
-      // Update platform integrations
-      const existingIntegrations = currentSettings.platformIntegrations || [];
-      const updatedIntegrations = [...existingIntegrations];
+    if (!session) {
+      console.error("No session found. Please log in first.");
+      return;
+    }
 
-      const existingIndex = updatedIntegrations.findIndex(
-        (p: any) => p.platformId === platformId
-      );
-      
-      // Create new integration with all required fields
-      const newIntegration = {
-        platformId,
-        isConnected: true,
-        username: `@demo_user_${platformId.toLowerCase()}`,
-        accessToken: `fake_access_token_${platformId}_${Date.now()}`, // Dummy token
-        refreshToken: `fake_refresh_token_${platformId}_${Date.now()}`, // Dummy token
-        lastSync: new Date(),
-        syncEnabled: true,
-      };
+    const sessionUser = session.user;
 
-      if (existingIndex >= 0) {
-        updatedIntegrations[existingIndex] = newIntegration;
-      } else {
-        updatedIntegrations.push(newIntegration);
+    if (!sessionUser) {
+      console.error("No Firebase user found. Please log in.");
+      return;
+    }
+
+    let provider;
+    if (platformId === "youtube") {
+      provider = new firebase.auth.GoogleAuthProvider();
+    } else if (platformId === "facebook") {
+      provider = new firebase.auth.FacebookAuthProvider();
+    } else if (platformId === "X") {
+      provider = new firebase.auth.TwitterAuthProvider();
+    } else if (platformId === "linkedin") {
+      // Redirect the user to LinkedIn OAuth login page if LinkedIn is selected
+      const linkedinAuthUrl = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_LINKEDIN_REDIRECT_URI}&state=randomstate&scope=r_liteprofile%20r_emailaddress`; // Add more scopes if needed
+      window.location.href = linkedinAuthUrl;
+      return;
+    }
+
+    if (provider) {
+      try {
+        // Trigger OAuth login via Firebase for other platforms (Google, Facebook, etc.)
+        const result = await firebase.auth().signInWithPopup(provider);
+        const linkedUser = result.user;
+
+        console.log(`${platformId} account linked successfully:`, linkedUser);
+
+        if (!linkedUser) {
+          throw new Error("Linked user is null after linking social account.");
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+
+        // Get current settings first
+        const currentResponse = await axios.get("/api/settings");
+        const currentSettings = currentResponse.data.data;
+
+        // Update platform integrations
+        const existingIntegrations = currentSettings.platformIntegrations || [];
+        const updatedIntegrations = [...existingIntegrations];
+
+        const existingIndex = updatedIntegrations.findIndex(
+          (p: any) => p.platformId === platformId
+        );
+
+        const platformData = {
+          provider: platformId,
+          platformId: platformId,
+          providerAccountId: linkedUser.uid,
+          accessToken:
+            result.credential && "accessToken" in result.credential
+              ? (result.credential as any).accessToken
+              : undefined,
+          username: linkedUser.displayName!,
+          email: linkedUser.email!,
+          image: linkedUser.photoURL!,
+          isConnected: true,
+          lastSync: new Date(),
+          syncEnabled: true,
+        };
+
+        if (existingIndex >= 0) {
+          updatedIntegrations[existingIndex] = platformData;
+        } else {
+          updatedIntegrations.push(platformData);
+        }
+
+        // Use POST request to store the data in the database
+        const response = await axios.post("/api/settings", {
+          platformIntegrations: updatedIntegrations,
+        });
+
+        if (response.data.success) {
+          await loadIntegrations(); // Reload to get updated data from the database
+        } else {
+          console.error("Database save failed:", response.data);
+          alert("Failed to save connection to database. Please try again.");
+        }
+
+        // Redirect to the profile page after successful linking
+        router.push("/dashboard/settings");
+      } catch (error: any) {
+        console.error("Error linking social account:", error.message);
+      } finally {
+        setActionLoading(null);
       }
-
-      
-      // Use POST request to store the data in database
-      const response = await axios.post("/api/settings", {
-        platformIntegrations: updatedIntegrations,
-      });
-
-      if (response.data.success) {
-        await loadIntegrations(); // Reload to get updated data from database
-      } else {
-        console.error('Database save failed:', response.data);
-        alert('Failed to save connection to database. Please try again.');
-      }
-    } catch (error: any) {
-      console.error("Error connecting platform:", error);
-      alert("Error connecting platform. Please try again.");
-    } finally {
-      setActionLoading(null);
     }
   };
 
   const handleDisconnect = async (platformId: string) => {
     setActionLoading(platformId);
     try {
-      
       // Simulate disconnection delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+
       // Get current settings first
       const currentResponse = await axios.get("/api/settings");
       const currentSettings = currentResponse.data.data;
@@ -191,18 +232,17 @@ export function PlatformIntegrations() {
       const existingIntegrations = currentSettings.platformIntegrations || [];
       const updatedIntegrations = existingIntegrations.map((integration: any) =>
         integration.platformId === platformId
-          ? { 
-              ...integration, 
-              isConnected: false, 
+          ? {
+              ...integration,
+              isConnected: false,
               username: undefined,
               accessToken: undefined,
               refreshToken: undefined,
               lastSync: undefined,
-              syncEnabled: false
+              syncEnabled: false,
             }
           : integration
       );
-
 
       // Use POST request to store the updated data in database
       const response = await axios.post("/api/settings", {
@@ -212,8 +252,8 @@ export function PlatformIntegrations() {
       if (response.data.success) {
         await loadIntegrations(); // Reload to get updated data from database
       } else {
-        console.error('Database save failed:', response.data);
-        alert('Failed to save disconnection to database. Please try again.');
+        console.error("Database save failed:", response.data);
+        alert("Failed to save disconnection to database. Please try again.");
       }
     } catch (error: any) {
       console.error("Error disconnecting platform:", error);
@@ -249,7 +289,7 @@ export function PlatformIntegrations() {
       <div className="space-y-4">
         {platforms.map((platform) => {
           const IconComponent = platform.icon;
-          
+
           return (
             <div key={platform.platformId} className="border rounded-lg p-4">
               <div className="flex items-center justify-between">
@@ -300,7 +340,10 @@ export function PlatformIntegrations() {
                     </>
                   ) : (
                     <>
-                      <Badge variant="outline" className="text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="text-muted-foreground"
+                      >
                         <AlertCircle className="w-3 h-3 mr-1" />
                         Not Connected
                       </Badge>

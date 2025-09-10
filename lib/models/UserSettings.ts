@@ -6,7 +6,7 @@ export interface INotificationSettings {
   pushNotifications: boolean;
   marketingEmails: boolean;
   weeklyDigest: boolean;
-  
+
   // Calendar notification preferences
   calendarNotifications: {
     events: {
@@ -32,7 +32,7 @@ export interface IPlatformIntegration {
   isConnected: boolean;
   username?: string;
   accessToken?: string; // encrypted
-  refreshToken?: string; // encrypted  
+  refreshToken?: string; // encrypted
   lastSync?: Date;
   syncEnabled: boolean;
 }
@@ -46,8 +46,6 @@ export interface ISubscriber {
   unsubscribedAt?: Date;
   source?: string; // how they were added (manual, import, form, etc.)
 }
-
-
 
 export interface IEmailListSettings {
   lists: {
@@ -85,14 +83,14 @@ export interface IGeneralSettings {
 // Main UserSettings interface
 export interface IUserSettings extends Document {
   userId: mongoose.Types.ObjectId;
-  
+
   // Settings categories
   notifications: INotificationSettings;
   platformIntegrations: IPlatformIntegration[];
   emailSettings: IEmailListSettings;
   privacy: IPrivacySettings;
   general: IGeneralSettings;
-  
+
   // Metadata
   createdAt: Date;
   updatedAt: Date;
@@ -105,7 +103,7 @@ const NotificationSettingsSchema = new Schema(
     pushNotifications: { type: Boolean, default: true },
     marketingEmails: { type: Boolean, default: false },
     weeklyDigest: { type: Boolean, default: true },
-    
+
     // Calendar notification preferences
     calendarNotifications: {
       events: {
@@ -131,10 +129,18 @@ const NotificationSettingsSchema = new Schema(
 // Platform integration sub-schema
 const PlatformIntegrationSchema = new Schema(
   {
-    platformId: { 
-      type: String, 
-      enum: ["X", "linkedin", "instagram", "tiktok", "youtube", "facebook", "wordpress"],
-      required: true 
+    platformId: {
+      type: String,
+      enum: [
+        "X",
+        "linkedin",
+        "instagram",
+        "tiktok",
+        "youtube",
+        "facebook",
+        "wordpress",
+      ],
+      required: true,
     },
     isConnected: { type: Boolean, default: false },
     username: { type: String },
@@ -152,15 +158,17 @@ const SubscriberSchema = new Schema(
     id: { type: String, required: true },
     email: { type: String, required: true },
     name: { type: String },
-    status: { type: String, enum: ["subscribed", "unsubscribed"], default: "subscribed" },
+    status: {
+      type: String,
+      enum: ["subscribed", "unsubscribed"],
+      default: "subscribed",
+    },
     subscribedAt: { type: Date, default: Date.now },
     unsubscribedAt: { type: Date },
     source: { type: String, default: "manual" },
   },
   { _id: false }
 );
-
-
 
 const EmailListSchema = new Schema(
   {
@@ -205,7 +213,11 @@ const GeneralSettingsSchema = new Schema(
     dateFormat: { type: String, default: "MM/DD/YYYY" },
     timeFormat: { type: String, enum: ["12h", "24h"], default: "12h" },
     weekStart: { type: String, enum: ["monday", "sunday"], default: "monday" },
-    theme: { type: String, enum: ["light", "dark", "system"], default: "system" },
+    theme: {
+      type: String,
+      enum: ["light", "dark", "system"],
+      default: "system",
+    },
   },
   { _id: false }
 );
@@ -219,7 +231,7 @@ const UserSettingsSchema: Schema = new Schema(
       required: true,
       unique: true, // One settings document per user
     },
-    
+
     notifications: { type: NotificationSettingsSchema, default: {} },
     platformIntegrations: [PlatformIntegrationSchema],
     emailSettings: { type: EmailListSettingsSchema, default: {} },
