@@ -590,123 +590,66 @@ export default function DistributionPage() {
   ) => {
     setIsPublishing(true);
 
+    if (selectedPlatforms.length === 0) {
+      await handleGlocalistLivePublish();
+      return;
+    }
+
     try {
-      // Always call handleGlocalistLivePublish first
-      if (!isScheduled) {
-        await handleGlocalistLivePublish();
+      // Save the post with scheduling information
+      const savePayload = {
+        title,
+        blocks,
+        category,
+        country,
+        type,
+        articleImage,
+        status: isScheduled ? ("scheduled" as const) : ("published" as const),
+        platforms: selectedPlatforms
+          .map((id) => platformMapping[id].toLowerCase())
+          .filter(Boolean),
+        tags: [], // TODO: Add tags functionality later
+        isPublic: true,
+        ...(isScheduled && scheduledDate && { scheduledDate }),
+        ...(currentPostId && { postId: currentPostId }),
+      };
+
+      // Call the save API
+      const response = await fetch("/api/content/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(savePayload),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save content");
       }
 
-      // If there are selected platforms, handle social media publishing
-      if (selectedPlatforms.length > 0) {
-        // Save the post with scheduling information
-        const savePayload = {
-          title,
-          blocks,
-          category,
-          country,
-          type,
-          articleImage,
-          status: isScheduled ? ("scheduled" as const) : ("published" as const),
-          platforms: selectedPlatforms
-            .map((id) => platformMapping[id].toLowerCase())
-            .filter(Boolean),
-          tags: [], // TODO: Add tags functionality later
-          isPublic: true,
-          ...(isScheduled && scheduledDate && { scheduledDate }),
-          ...(currentPostId && { postId: currentPostId }),
-        };
+      const result = await response.json();
 
-        // Call the save API
-        const response = await fetch("/api/content/save", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(savePayload),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to save content");
-        }
-
-        const result = await response.json();
-
-        // Update post state management
-        if (result.post?.id) {
-          setCurrentPostId(result.post.id);
-          setIsEditing(true);
-        }
-
-        const platformNames = selectedPlatforms
-          .map((id) => platformMapping[id])
-          .join(", ");
-
-        const description =
-          isScheduled && scheduledDate
-            ? `Scheduled for ${new Date(
-                scheduledDate
-              ).toLocaleString()} on ${platformNames}`
-            : `Published to: ${platformNames}`;
-
-        toast({ title: "Success", description });
-
-        setSelectedPlatforms([]);
-      } else {
-        // If no platforms selected, just show success for Globalist.live publishing
-        const description =
-          isScheduled && scheduledDate
-            ? `Scheduled for ${new Date(
-                scheduledDate
-              ).toLocaleString()} on Globalist.live`
-            : `Published to Globalist.live`;
-
-        toast({ title: "Success", description });
+      // Update post state management
+      if (result.post?.id) {
+        setCurrentPostId(result.post.id);
+        setIsEditing(true);
       }
 
-      // Handle scheduled publishing
-      if (isScheduled && scheduledDate) {
-        const scheduleTime = new Date(scheduledDate).getTime();
-        const currentTime = new Date().getTime();
-        const delay = scheduleTime - currentTime;
+      const platformNames = selectedPlatforms
+        .map((id) => platformMapping[id])
+        .join(", ");
 
-        if (delay > 0) {
-          // Schedule the article to be published at the specified time
-          setTimeout(async () => {
-            try {
-              // Re-publish to Globalist.live at scheduled time
-              await handleGlocalistLivePublish();
-
-              toast({
-                title: "Scheduled Article Published",
-                description:
-                  "Your scheduled article has been published to Globalist.live",
-              });
-            } catch (error) {
-              console.error("Error publishing scheduled article:", error);
-              toast({
-                title: "Scheduled Publishing Failed",
-                description:
-                  "Failed to publish scheduled article. Please try again.",
-                variant: "destructive",
-              });
-            }
-          }, delay);
-
-          toast({
-            title: "Article Scheduled",
-            description: `Your article will be published on ${new Date(
+      const description =
+        isScheduled && scheduledDate
+          ? `Scheduled for ${new Date(
               scheduledDate
-            ).toLocaleString()}`,
-          });
-        } else {
-          toast({
-            title: "Invalid Schedule Time",
-            description: "Scheduled time must be in the future",
-            variant: "destructive",
-          });
-        }
-      }
+            ).toLocaleString()} on ${platformNames}`
+          : `Published to: ${platformNames}`;
+
+      toast({ title: "Success", description });
+
+      setSelectedPlatforms([]);
     } catch (error) {
       console.error("Publishing error:", error);
       toast({

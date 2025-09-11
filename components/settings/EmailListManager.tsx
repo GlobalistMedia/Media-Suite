@@ -267,29 +267,105 @@ export function EmailListManager() {
   const handleEditList = async () => {
     if (!selectedList || !editListData.name.trim()) return;
 
-    const updatedLists = emailLists.map((list) =>
-      list._id === selectedList._id
-        ? {
-            ...list,
-            name: editListData.name,
-            description: editListData.description,
-            tags: editListData.tags
-              .split(",")
-              .map((tag) => tag.trim())
-              .filter(Boolean),
-          }
-        : list
-    );
+    setIsSaving(true);
+    try {
+      // Update email list via API
+      const response = await axios.put(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/`,
+        {
+          emailListId: selectedList._id,
+          name: editListData.name,
+          description: editListData.description,
+          tags: editListData.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+          creatorEmail: "venomkr020@gmail.com",
+        }
+      );
 
-    await saveEmailSettings(updatedLists);
-    setEditListDialog(false);
-    setSelectedList(null);
-    setEditListData({ name: "", description: "", tags: "" });
+      if (
+        response.data.status === 200 ||
+        response.data.message === "Email list updated"
+      ) {
+        // Update local state with the updated list
+        const updatedLists = emailLists.map((list) =>
+          list._id === selectedList._id
+            ? {
+                ...list,
+                name: editListData.name,
+                description: editListData.description,
+                tags: editListData.tags
+                  .split(",")
+                  .map((tag) => tag.trim())
+                  .filter(Boolean),
+              }
+            : list
+        );
+
+        setEmailLists(updatedLists);
+        setEditListDialog(false);
+        setSelectedList(null);
+        setEditListData({ name: "", description: "", tags: "" });
+
+        console.log("Email list updated successfully:", selectedList._id);
+        toast({
+          title: "Email list updated successfully",
+          description: "Email list updated successfully",
+        });
+      } else {
+        throw new Error(response.data.message || "Failed to update email list");
+      }
+    } catch (error: any) {
+      console.error("Error updating email list:", error);
+      toast({
+        title: "Error updating email list",
+        description: "Error updating email list. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDeleteList = async (listId: string) => {
-    const updatedLists = emailLists.filter((list) => list._id !== listId);
-    await saveEmailSettings(updatedLists);
+    setIsSaving(true);
+    try {
+      // Delete email list via API
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/delete-email-list`,
+        {
+          emailListId: listId,
+          creatorEmail: "venomkr020@gmail.com",
+        }
+      );
+
+      if (
+        response.data.status === 201 ||
+        response.data.message === "Email-list deleted"
+      ) {
+        // Update local state by removing the deleted list
+        const updatedLists = emailLists.filter((list) => list._id !== listId);
+        setEmailLists(updatedLists);
+
+        console.log("Email list deleted successfully:", listId);
+        toast({
+          title: "Email list deleted successfully",
+          description: "Email list deleted successfully",
+        });
+      } else {
+        throw new Error(response.data.message || "Failed to delete email list");
+      }
+    } catch (error: any) {
+      console.error("Error deleting email list:", error);
+      toast({
+        title: "Error deleting email list",
+        description: "Error deleting email list. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const openEditDialog = (list: EmailList) => {
@@ -1014,9 +1090,9 @@ export function EmailListManager() {
               <Button
                 onClick={handleEditList}
                 className="flex-1"
-                disabled={!editListData.name.trim()}
+                disabled={!editListData.name.trim() || isSaving}
               >
-                Save Changes
+                {isSaving ? "Saving..." : "Save Changes"}
               </Button>
               <Button
                 variant="outline"

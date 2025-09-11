@@ -1,8 +1,8 @@
 import "./globals.css";
 import type { Metadata } from "next";
 import Providers from "./providers"; // 1. Import your new wrapper component
-import { Header } from "@/components/header";
-import { Footer } from "@/components/footer";
+// import { Header } from "@/components/header";
+// import { Footer } from "@/components/footer";
 
 export const metadata: Metadata = {
   title: "Globalist Media Suite",
@@ -35,9 +35,9 @@ export default function RootLayout({
       <body>
         {/* 2. Use the Providers component to wrap your children */}
         <Providers>
-          <Header />
+          {/* <Header /> */}
           {children}
-          <Footer />
+          {/* <Footer /> */}
         </Providers>
       </body>
     </html>
