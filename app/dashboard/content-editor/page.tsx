@@ -590,6 +590,7 @@ export default function DistributionPage() {
   ) => {
     setIsPublishing(true);
 
+
     try {
       // Always call handleGlocalistLivePublish first
       if (!isScheduled) {
