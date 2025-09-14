@@ -592,7 +592,6 @@ export default function DistributionPage() {
 
     if (selectedPlatforms.length === 0) {
       await handleGlocalistLivePublish();
-      return;
     }
 
     try {
