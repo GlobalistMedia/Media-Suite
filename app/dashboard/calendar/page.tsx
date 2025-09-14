@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,6 +49,7 @@ export default function SchedulePage() {
     handleBulkDelete,
     handleExportSchedule,
     handleDeleteEvent,
+    refreshCalendarData,
   } = useCalendarData();
   const {
     searchQuery,
@@ -80,6 +81,19 @@ export default function SchedulePage() {
   const handleSchedulePost = () => {
     router.push("/dashboard/distribution");
   };
+
+  // Listen for calendar refresh events from content editor
+  useEffect(() => {
+    const handleCalendarRefresh = () => {
+      refreshCalendarData();
+    };
+
+    window.addEventListener("calendarRefresh", handleCalendarRefresh);
+
+    return () => {
+      window.removeEventListener("calendarRefresh", handleCalendarRefresh);
+    };
+  }, [refreshCalendarData]);
 
   return (
     <div className="p-4 md:p-8 space-y-6 md:space-y-8">
@@ -152,7 +166,8 @@ export default function SchedulePage() {
               {filteredEvents.length}
             </div>
             <p className="text-xs text-muted-foreground">
-              {events.filter((e) => e.startDateTime > new Date()).length} upcoming
+              {events.filter((e) => e.startDateTime > new Date()).length}{" "}
+              upcoming
             </p>
           </CardContent>
         </Card>
@@ -194,7 +209,8 @@ export default function SchedulePage() {
                 weekEnd.setDate(weekStart.getDate() + 6);
 
                 const thisWeekEvents = events.filter(
-                  (e) => e.startDateTime >= weekStart && e.startDateTime <= weekEnd
+                  (e) =>
+                    e.startDateTime >= weekStart && e.startDateTime <= weekEnd
                 ).length;
 
                 const thisWeekPosts = scheduledPosts.filter(

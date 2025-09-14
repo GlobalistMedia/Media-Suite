@@ -612,7 +612,11 @@ export default function DistributionPage() {
             .filter(Boolean),
           tags: [], // TODO: Add tags functionality later
           isPublic: true,
-          ...(isScheduled && scheduledDate && { scheduledDate }),
+          ...(isScheduled &&
+            scheduledDate && {
+              scheduledDate: new Date(scheduledDate).toISOString(),
+              scheduledDateTime: new Date(scheduledDate),
+            }),
           ...(currentPostId && { postId: currentPostId }),
         };
 
@@ -651,6 +655,11 @@ export default function DistributionPage() {
 
         toast({ title: "Success", description });
 
+        // Refresh calendar data if post was scheduled
+        if (isScheduled) {
+          await refreshCalendarData();
+        }
+
         setSelectedPlatforms([]);
       } else {
         // If no platforms selected, just show success for Globalist.live publishing
@@ -662,6 +671,11 @@ export default function DistributionPage() {
             : `Published to Globalist.live`;
 
         toast({ title: "Success", description });
+
+        // Refresh calendar data if post was scheduled
+        if (isScheduled) {
+          await refreshCalendarData();
+        }
       }
 
       // Handle scheduled publishing
@@ -723,6 +737,16 @@ export default function DistributionPage() {
   const handleUpgradeFromModal = () => {
     setShowUpgradeModal(false);
     router.push("/pricing");
+  };
+
+  // Function to refresh calendar data after scheduling
+  const refreshCalendarData = async () => {
+    try {
+      // Trigger a custom event that the calendar can listen to
+      window.dispatchEvent(new CustomEvent("calendarRefresh"));
+    } catch (error) {
+      console.error("Error refreshing calendar data:", error);
+    }
   };
 
   return (
