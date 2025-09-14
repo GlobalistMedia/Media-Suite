@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import Image from "next/image";
 import {
   CheckCircle,
   XCircle,
@@ -35,10 +36,11 @@ export default function Home() {
         {/* Background Video/Image */}
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-black/20"></div>
-          <img
+          <Image
             src="https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
             alt="Modern workspace with multiple screens showing analytics and content creation"
-            className="w-full h-full object-cover opacity-30"
+            fill
+            className="object-cover opacity-30"
           />
         </div>
         <div className="relative mx-auto max-w-7xl text-center z-10">
@@ -71,7 +73,7 @@ export default function Home() {
             >
               <Link href="/demo" className="flex items-center">
                 <div className="relative mr-3">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Play className="w-5 h-5 text-white ml-1" />
                   </div>
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-purple-600 rounded-full animate-ping opacity-20"></div>
@@ -90,9 +92,11 @@ export default function Home() {
                   <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
                   <div className="w-3 h-3 bg-green-500 rounded-full"></div>
                 </div>
-                <img
+                <Image
                   src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2015&q=80"
                   alt="Mediasuite Dashboard showing analytics, content creation, and social media management"
+                  width={800}
+                  height={400}
                   className="w-full h-64 md:h-80 object-cover rounded-lg"
                 />
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -151,33 +155,41 @@ export default function Home() {
                 </h3>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3">
-                    <img
+                    <Image
                       src="https://images.unsplash.com/photo-1611224923853-80b023f02d71?ixlib=rb-4.0.3&w=40&h=40&fit=crop&crop=face"
                       alt="Substack"
+                      width={40}
+                      height={40}
                       className="w-8 h-8 rounded"
                     />
                     <span className="text-sm">Substack for newsletters</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <img
+                    <Image
                       src="https://images.unsplash.com/photo-1611605698335-8b1569810432?ixlib=rb-4.0.3&w=40&h=40&fit=crop&crop=face"
                       alt="Hootsuite"
+                      width={40}
+                      height={40}
                       className="w-8 h-8 rounded"
                     />
                     <span className="text-sm">Hootsuite for social</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <img
+                    <Image
                       src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&w=40&h=40&fit=crop&crop=face"
                       alt="Mailchimp"
+                      width={40}
+                      height={40}
                       className="w-8 h-8 rounded"
                     />
                     <span className="text-sm">Mailchimp for campaigns</span>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <img
+                    <Image
                       src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&w=40&h=40&fit=crop&crop=face"
                       alt="Analytics"
+                      width={40}
+                      height={40}
                       className="w-8 h-8 rounded"
                     />
                     <span className="text-sm">Google Analytics for data</span>
@@ -192,9 +204,11 @@ export default function Home() {
                   Mediasuite Solution
                 </h3>
                 <div className="flex items-center space-x-3 mb-4">
-                  <img
+                  <Image
                     src="https://images.unsplash.com/photo-1551434678-e076c223a692?ixlib=rb-4.0.3&w=40&h=40&fit=crop&crop=face"
                     alt="Mediasuite"
+                    width={40}
+                    height={40}
                     className="w-8 h-8 rounded"
                   />
                   <span className="text-sm font-semibold">
@@ -238,10 +252,11 @@ export default function Home() {
             <div className="relative mx-auto max-w-4xl">
               <div className="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 rounded-2xl overflow-hidden shadow-2xl">
                 <div className="absolute inset-0 bg-black/20"></div>
-                <img
+                <Image
                   src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
                   alt="Mediasuite Platform Demo"
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <div className="w-20 h-20 bg-white/90 rounded-full flex items-center justify-center hover:scale-110 transition-transform cursor-pointer">
@@ -337,9 +352,11 @@ export default function Home() {
               Built for Modern Storytellers and Teams
             </h2>
             <div className="relative mx-auto max-w-4xl mb-8">
-              <img
+              <Image
                 src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2071&q=80"
                 alt="Diverse team collaborating on content creation and media strategy"
+                width={800}
+                height={400}
                 className="w-full h-64 md:h-80 object-cover rounded-2xl shadow-lg"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-2xl"></div>
@@ -534,9 +551,11 @@ export default function Home() {
                 me.&quot;
               </blockquote>
               <div className="flex items-center mt-auto">
-                <img
+                <Image
                   src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=150&q=80"
                   alt="Sarah Chen"
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-full object-cover mr-4"
                 />
                 <div>
@@ -562,9 +581,11 @@ export default function Home() {
                 same effort.&quot;
               </blockquote>
               <div className="flex items-center mt-auto">
-                <img
+                <Image
                   src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80"
                   alt="Michael Rodriguez"
+                  width={48}
+                  height={48}
                   className="w-12 h-12 rounded-full object-cover mr-4"
                 />
                 <div>
@@ -591,9 +612,11 @@ export default function Home() {
 
           {/* Success Story Image */}
           <div className="relative mx-auto max-w-4xl mb-12">
-            <img
+            <Image
               src="https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2070&q=80"
               alt="Successful content creators and marketers celebrating their achievements with unified media tools"
+              width={800}
+              height={400}
               className="w-full h-64 md:h-80 object-cover rounded-2xl shadow-xl"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent rounded-2xl"></div>
