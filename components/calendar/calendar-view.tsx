@@ -57,11 +57,24 @@ export function CalendarView({
   onUpdatePost,
   onDeleteEvent,
 }: CalendarViewProps) {
+  const [expandedDates, setExpandedDates] = useState<Set<string>>(new Set());
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"month" | "week" | "list">("month");
   const [selectedItem, setSelectedItem] = useState<
     Event | ScheduledPost | null
   >(null);
+
+  const toggleDateExpansion = (dateString: string) => {
+    setExpandedDates(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(dateString)) {
+        newSet.delete(dateString);
+      } else {
+        newSet.add(dateString);
+      }
+      return newSet;
+    });
+  };
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
@@ -329,38 +342,56 @@ export function CalendarView({
                           {day.getDate()}
                         </div>
                         <div className="space-y-1">
-                          {getItemsForDate(day)
-                            .slice(0, 2)
-                            .map((item, itemIndex) => (
-                              <div
-                                key={itemIndex}
-                                className={`
-                                text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 group
-                                ${
-                                  "eventType" in item
-                                    ? isDark 
-                                      ? "bg-blue-900 text-blue-200" 
-                                      : "bg-blue-100 text-blue-800"
-                                    : isDark 
-                                      ? "bg-green-900 text-green-200" 
-                                      : "bg-green-100 text-green-800"
-                                }
-                              `}
-                                onClick={() => handleEditItem(item)}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <span className="truncate">
-                                    {"eventType" in item ? item.title : item.title}
-                                  </span>
-                                  <Edit className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </div>
-                              </div>
-                            ))}
-                          {getItemsForDate(day).length > 2 && (
-                            <div className="text-xs text-muted-foreground">
-                              +{getItemsForDate(day).length - 2} more
-                            </div>
-                          )}
+                          {(() => {
+                            const items = getItemsForDate(day);
+                            const dateString = day.toDateString();
+                            const isExpanded = expandedDates.has(dateString);
+                            const itemsToShow = isExpanded ? items : items.slice(0, 2);
+                            
+                            return (
+                              <>
+                                {itemsToShow.map((item, itemIndex) => (
+                                  <div
+                                    key={itemIndex}
+                                    className={`
+                                    text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 group
+                                    ${
+                                      "eventType" in item
+                                        ? isDark 
+                                          ? "bg-blue-900 text-blue-200" 
+                                          : "bg-blue-100 text-blue-800"
+                                        : isDark 
+                                          ? "bg-green-900 text-green-200" 
+                                          : "bg-green-100 text-green-800"
+                                    }
+                                  `}
+                                    onClick={() => handleEditItem(item)}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="truncate">
+                                        {"eventType" in item ? item.title : item.title}
+                                      </span>
+                                      <Edit className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                    </div>
+                                  </div>
+                                ))}
+                                {items.length > 2 && (
+                                  <button
+                                    className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-full text-left"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleDateExpansion(dateString);
+                                    }}
+                                  >
+                                    {isExpanded 
+                                      ? `-${items.length - 2} less` 
+                                      : `+${items.length - 2} more`
+                                    }
+                                  </button>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       </>
                     )}

@@ -183,7 +183,7 @@ export default function DistributionPage() {
     try {
       setIsLoadingEmailLists(true);
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=venomkr020@gmail.com&page=1&limit=10000`
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=${session?.user?.email}&page=1&limit=10000`
       );
       console.log("response", response.data);
       if (response.data.status === 200 && response.data.response.emails) {
@@ -624,7 +624,9 @@ export default function DistributionPage() {
     try {
       // Always call handleGlocalistLivePublish first
       if (!isScheduled) {
+
         await handleGlobalistLivePublish();
+
       }
 
       // Always save the post when scheduling or publishing
@@ -647,6 +649,7 @@ export default function DistributionPage() {
           }),
         ...(currentPostId && { postId: currentPostId }),
       };
+
 
       // Call the save API
       const response = await fetch("/api/content/save", {
@@ -688,6 +691,7 @@ export default function DistributionPage() {
         const accessToken = socialCreds?.facebook as string;
         await postToFacebook(accessToken, message);
       }
+
 
       let description = "";
       if (isScheduled && scheduledDate) {
