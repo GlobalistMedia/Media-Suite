@@ -152,7 +152,7 @@ export default function DistributionPage() {
     try {
       setIsLoadingEmailLists(true);
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=venomkr020@gmail.com&page=1&limit=10000`
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=${session?.user?.email}&page=1&limit=10000`
       );
       console.log("response", response.data);
       if (response.data.status === 200 && response.data.response.emails) {
