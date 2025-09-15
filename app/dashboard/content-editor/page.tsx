@@ -40,14 +40,18 @@ interface EmailList {
   subscriberCount: number;
 }
 
+interface platformCreds {
+  facebook?: string;
+  youtube?: string;
+}
 // Platform mapping utility
 const platformMapping: Record<number, string> = {
   1: "Twitter", // Twitter
   2: "LinkedIn", // LinkedIn
   3: "Instagram", // Instagram
   4: "YouTube", // YouTube
-  5: "TikTok", // TikTok
-  6: "Facebook", // Facebook
+  // 5: "TikTok", // TikTok
+  5: "Facebook", // Facebook
 };
 
 export default function DistributionPage() {
@@ -65,7 +69,7 @@ export default function DistributionPage() {
   const [showPublishingHub, setShowPublishingHub] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [socialCreds, setSocialCreds] = useState([]);
+  const [socialCreds, setSocialCreds] = useState<platformCreds>();
 
   // Email list state
   const [emailLists, setEmailLists] = useState<EmailList[]>([]);
@@ -146,7 +150,18 @@ export default function DistributionPage() {
     try {
       const currentResponse = await axios.get("/api/settings");
       const currentSettings = currentResponse.data.data;
-      setSocialCreds(currentSettings.platformIntegrations);
+      const facebookCreds = currentSettings.platformIntegrations.find(
+        (item: any) => item.platformId === "facebook"
+      ).accessToken;
+      const youtubeCreds = currentSettings.platformIntegrations.find(
+        (item: any) => item.platformId === "youtube"
+      ).accessToken;
+
+      setSocialCreds((prevData) => ({
+        ...prevData,
+        facebook: facebookCreds,
+        youtube: youtubeCreds,
+      }));
     } catch (error: any) {
       console.error("Error in Social cred fetching", error.message);
     }
@@ -662,6 +677,19 @@ export default function DistributionPage() {
           .map((id) => platformMapping[id])
           .join(", ");
 
+        if (platformNames.includes("YouTube")) {
+          await uploadToYouTube(blocks);
+        }
+
+        if (platformNames.includes("Linkedin")) {
+          await uploadToLinkedIn(blocks);
+        }
+
+        if (platformNames.includes("Facebook")) {
+          const message = "Hello, this is a test post from my app!";
+          const accessToken = socialCreds?.facebook as string;
+          await postToFacebook(accessToken, message);
+        }
         const description =
           isScheduled && scheduledDate
             ? `Scheduled for ${new Date(
@@ -750,6 +778,66 @@ export default function DistributionPage() {
     }
   };
 
+  // Handle Facebook post
+  const postToFacebook = async (accessToken: string, message: string) => {
+    // Step 1: Check if the user has the required permissions to post
+    // const permissionsGranted = await checkPermissionsForPosting(accessToken);
+
+    // if (!permissionsGranted) {
+    //   console.log("Posting permission not granted. Requesting again.");
+
+    //   // Step 2: Request permissions for posting
+    //   const permissionsUrl = `https://www.facebook.com/v12.0/dialog/oauth?client_id=${process.env.FB_CLIENT_ID}&redirect_uri=${process.env.FB_REDIRECT_URI}&scope=publish_pages,publish_to_groups`;
+    //   window.location.href = permissionsUrl;
+    //   return;
+    // }
+
+    const url = `https://graph.facebook.com/v12.0/me/feed`; // Facebook API endpoint to post on user's timeline
+
+    try {
+      // Step 2: Post to Facebook using the Graph API
+      const response = await axios.post(url, {
+        message: message, // The message to post
+        access_token: accessToken, // The access token received from Firebase
+      });
+
+      // Step 3: Handle the response from the Facebook API
+      if (response.data && response.data.id) {
+        console.log("Post successful! Post ID:", response.data.id);
+        alert("Post successfully created on Facebook!");
+      } else {
+        console.error("Error posting on Facebook:", response.data);
+        alert("Failed to post on Facebook.");
+      }
+    } catch (error) {
+      console.error("Error posting to Facebook:", error);
+      alert("Error occurred while posting to Facebook.");
+    }
+  };
+
+  // Check if the required permissions (e.g., publish_to_groups, publish_pages) are granted
+  const checkPermissionsForPosting = async (accessToken: string) => {
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/me/permissions?access_token=${accessToken}`
+      );
+
+      // Step 4: Check if the correct posting permissions are granted
+      const permissions = response.data.data;
+      const hasPostingPermission = permissions.some(
+        (permission: any) =>
+          (permission.permission === "publish_pages" ||
+            permission.permission === "publish_to_groups") &&
+          permission.status === "granted"
+      );
+
+      return hasPostingPermission;
+    } catch (error: any) {
+      console.error("Error checking Facebook permissions:", error.message);
+      return false;
+    }
+  };
+
   // Handle Youtube Post
   const uploadToYouTube = async (blocks: any[]) => {
     try {
@@ -769,14 +857,13 @@ export default function DistributionPage() {
       });
 
       // OAuth token with the required permissions (youtube.upload scope)
-      const authToken =
-        "ya29.a0AS3H6NxOP-UjfftThXkn-vBfLW07d5Pk4eLPEW15r4pBySjFrQuZ-NFjWtseHKeLT416GYhtmHETLLe-DrBUdfr-IDB8RE2bh6VN_lRe9euzmSAJr-PV6hoVF5ZX940gMfJdnSRbu3F6dUU_ieqPtW5CI5SUErBAlSeyFzxo5zz0IuJMnI5rSDTdZO3vlwZs7p3qOiQaCgYKAVcSARISFQHGX2MiFFwRigL2srauIAOrraeUkA0206";
 
       // Prepare the metadata and status of the video
       const metadata = {
         snippet: {
           title: "videoTitle",
           description: "videoDescription",
+          authToken: socialCreds?.youtube,
           tags: ["tutorial", "blog", "YouTube", "content"],
         },
         status: {

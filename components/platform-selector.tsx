@@ -7,6 +7,7 @@ import {
   Instagram,
   Youtube,
   Globe,
+  Facebook,
 } from "lucide-react";
 import { SiTiktok } from "react-icons/si";
 
@@ -20,11 +21,14 @@ const platforms = [
   { id: 2, name: "LinkedIn", icon: Linkedin },
   { id: 3, name: "Instagram", icon: Instagram },
   { id: 4, name: "YouTube", icon: Youtube },
-  { id: 5, name: "TikTok", icon: SiTiktok },
+  { id: 5, name: "Facebook", icon: Facebook },
   { id: 6, name: "Personal", icon: Globe },
 ];
 
-export function PlatformSelector({ selectedPlatforms, onPlatformToggle }: PlatformSelectorProps) {
+export function PlatformSelector({
+  selectedPlatforms,
+  onPlatformToggle,
+}: PlatformSelectorProps) {
   return (
     <div>
       <label className="text-sm font-medium">Platforms</label>
@@ -32,13 +36,15 @@ export function PlatformSelector({ selectedPlatforms, onPlatformToggle }: Platfo
         {platforms.map((platform) => {
           const IconComponent = platform.icon;
           const isSelected = selectedPlatforms.includes(platform.id);
-          
+
           return (
             <Button
               key={platform.id}
               variant="outline"
               size="sm"
-              className={`flex-1 sm:flex-none ${isSelected ? "bg-primary text-primary-foreground" : ""}`}
+              className={`flex-1 sm:flex-none ${
+                isSelected ? "bg-primary text-primary-foreground" : ""
+              }`}
               onClick={() => onPlatformToggle(platform.id)}
             >
               <IconComponent className="mr-2 h-4 w-4" />

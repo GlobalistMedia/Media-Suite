@@ -39,8 +39,8 @@ const platformMap = {
   2: "LinkedIn",
   3: "Instagram",
   4: "YouTube",
-  5: "TikTok",
-  6: "Facebook",
+  // 5: "TikTok",
+  5: "Facebook",
 };
 
 export function PublishingHubModal({
