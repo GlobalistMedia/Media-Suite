@@ -439,13 +439,13 @@ export function PublishingHubModal({
                     </Card>
 
                     {/* Platform-specific Media Upload */}
-                    <PlatformMediaUpload
+                    {/* <PlatformMediaUpload
                       platform={platform}
                       onMediaUpload={(files) =>
                         handlePlatformMediaUpload(platform, files)
                       }
                       uploadedFiles={platformMedia[platform] || []}
-                    />
+                    /> */}
                   </TabsContent>
                 ))}
               </Tabs>
