@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const body: SaveContentRequest = await request.json();
-    console.log("dgfdg", body);
+    console.log("Content save request body:", body);
     const {
       title,
       blocks,
@@ -282,24 +282,8 @@ export async function POST(request: NextRequest) {
         },
         { new: true }
       );
-      // If post is scheduled, update or create corresponding Event
-      if (status === "scheduled") {
-        event = await Event.findOneAndUpdate(
-          { sourcePostId: post._id },
-          {
-            userId: session.user.id,
-            title,
-            description: "",
-            startDateTime: scheduledDate ? new Date(scheduledDate) : new Date(),
-            duration: 60, // Default duration, adjust as needed
-            eventType: "scheduled_post",
-            sourcePostId: post._id,
-            status: "scheduled",
-            notificationSent: false,
-          },
-          { new: true, upsert: true }
-        );
-      }
+      // Note: We no longer create Event records for scheduled posts
+      // Scheduled posts are handled directly through the Post model
     } else {
       // Create new post
       post = new Post({
@@ -314,21 +298,8 @@ export async function POST(request: NextRequest) {
         scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
       });
       await post.save();
-      // If post is scheduled, create corresponding Event
-      if (status === "scheduled") {
-        event = new Event({
-          userId: session.user.id,
-          title,
-          description: "",
-          startDateTime: scheduledDate ? new Date(scheduledDate) : new Date(),
-          duration: 60, // Default duration, adjust as needed
-          eventType: "scheduled_post",
-          sourcePostId: post._id,
-          status: "scheduled",
-          notificationSent: false,
-        });
-        await event.save();
-      }
+      // Note: We no longer create Event records for scheduled posts
+      // Scheduled posts are handled directly through the Post model
     }
 
     return NextResponse.json({
