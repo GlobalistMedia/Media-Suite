@@ -18,11 +18,29 @@ export async function GET(request: NextRequest) {
     await dbConnect();
     const userId = session.user.id;
 
-    // Fetch events
-    const events = await Event.find({ userId }).sort({ startDateTime: 1 });
+    // Clean up any existing scheduled_post events to avoid duplication
+    await Event.deleteMany({ 
+      userId, 
+      eventType: 'scheduled_post' 
+    });
+
+    // Fetch events (excluding scheduled_post events to avoid duplication)
+    const events = await Event.find({ 
+      userId, 
+      eventType: { $ne: 'scheduled_post' } 
+    }).sort({ startDateTime: 1 });
 
     // Fetch scheduled posts (status: scheduled)
     const scheduledPosts = await Post.find({ userId, status: 'scheduled' });
+    
+    console.log('Calendar API - Found scheduled posts:', scheduledPosts.length);
+    console.log('Calendar API - Scheduled posts data:', scheduledPosts.map(p => ({
+      id: p._id,
+      title: p.title,
+      status: p.status,
+      scheduledDate: p.scheduledDate,
+      platforms: p.platforms
+    })));
 
     return NextResponse.json({ events, scheduledPosts });
   } catch (error) {

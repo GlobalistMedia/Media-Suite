@@ -25,6 +25,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useState, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import {
   Mail,
   Plus,
@@ -66,6 +67,7 @@ interface EmailList {
 }
 
 export function EmailListManager() {
+  const { data: session } = useSession();
   const { toast } = useToast();
   const [emailLists, setEmailLists] = useState<EmailList[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -117,7 +119,7 @@ export function EmailListManager() {
   const loadEmailSettings = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=venomkr020@gmail.com&page=1&limit=10000`
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=${session?.user?.email}&page=1&limit=10000`
       );
       console.log("response", response.data);
       if (response.data.status === 200 && response.data.response.emails) {
@@ -226,7 +228,7 @@ export function EmailListManager() {
           tags: newList.tags,
           // status: newList.status,
           emails: newList.subscribers.map((subscriber) => subscriber.email),
-          creatorEmail: "venomkr020@gmail.com", // Using the same email as in loadEmailSettings
+          creatorEmail: session?.user?.email || "", // Using the logged-in user's email
         }
       );
 
@@ -280,7 +282,7 @@ export function EmailListManager() {
             .split(",")
             .map((tag) => tag.trim())
             .filter(Boolean),
-          creatorEmail: "venomkr020@gmail.com",
+          creatorEmail: session?.user?.email || "",
         }
       );
 
@@ -336,7 +338,7 @@ export function EmailListManager() {
         `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/delete-email-list`,
         {
           emailListId: listId,
-          creatorEmail: "venomkr020@gmail.com",
+          creatorEmail: session?.user?.email || "",
         }
       );
 

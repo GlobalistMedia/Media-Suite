@@ -19,6 +19,7 @@ export function useCalendarData() {
       try {
         const res = await axios.get("/api/calendar/all");
         const data = res.data;
+        console.log('Calendar hook - Received data:', data);
         // Convert date strings to Date objects for events
         setEvents(
           (data.events || []).map((event: any) => ({
@@ -191,6 +192,7 @@ export function useCalendarData() {
     try {
       const res = await axios.get("/api/calendar/all");
       const data = res.data;
+      console.log('Calendar hook refresh - Received data:', data);
       // Convert date strings to Date objects for events
       setEvents(
         (data.events || []).map((event: any) => ({
