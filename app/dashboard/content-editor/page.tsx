@@ -627,100 +627,95 @@ export default function DistributionPage() {
         await handleGlobalistLivePublish();
       }
 
-      // If there are selected platforms, handle social media publishing
-      if (selectedPlatforms.length > 0) {
-        // Save the post with scheduling information
-        const savePayload = {
-          title,
-          blocks,
-          category,
-          country,
-          type,
-          articleImage,
-          status: isScheduled ? ("scheduled" as const) : ("published" as const),
-          platforms: selectedPlatforms
-            .map((id) => platformMapping[id].toLowerCase())
-            .filter(Boolean),
-          tags: [], // TODO: Add tags functionality later
-          isPublic: true,
-          ...(isScheduled &&
-            scheduledDate && {
-              scheduledDate: new Date(scheduledDate).toISOString(),
-              scheduledDateTime: new Date(scheduledDate),
-            }),
-          ...(currentPostId && { postId: currentPostId }),
-        };
+      // Always save the post when scheduling or publishing
+      const savePayload = {
+        title,
+        blocks,
+        category,
+        country,
+        type,
+        articleImage,
+        status: isScheduled ? ("scheduled" as const) : ("published" as const),
+        platforms: selectedPlatforms
+          .map((id) => platformMapping[id].toLowerCase())
+          .filter(Boolean),
+        tags: [], // TODO: Add tags functionality later
+        isPublic: true,
+        ...(isScheduled &&
+          scheduledDate && {
+            scheduledDate: new Date(scheduledDate).toISOString(),
+          }),
+        ...(currentPostId && { postId: currentPostId }),
+      };
 
-        // Call the save API
-        const response = await fetch("/api/content/save", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(savePayload),
-        });
+      // Call the save API
+      const response = await fetch("/api/content/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(savePayload),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to save content");
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to save content");
+      }
+
+      const result = await response.json();
+
+      // Update post state management
+      if (result.post?.id) {
+        setCurrentPostId(result.post.id);
+        setIsEditing(true);
+      }
+
+      // Show success message based on platforms and scheduling
+      const platformNames = selectedPlatforms
+        .map((id) => platformMapping[id])
+        .join(", ");
+
+      if (platformNames.includes("YouTube")) {
+        await uploadToYouTube(blocks);
+      }
+
+      if (platformNames.includes("Linkedin")) {
+        await uploadToLinkedIn(blocks);
+      }
+
+      if (platformNames.includes("Facebook")) {
+        const message = "Hello, this is a test post from my app!";
+        const accessToken = socialCreds?.facebook as string;
+        await postToFacebook(accessToken, message);
+      }
+
+      let description = "";
+      if (isScheduled && scheduledDate) {
+        if (selectedPlatforms.length > 0) {
+          description = `Scheduled for ${new Date(
+            scheduledDate
+          ).toLocaleString()} on ${platformNames}`;
+        } else {
+          description = `Scheduled for ${new Date(
+            scheduledDate
+          ).toLocaleString()} on Globalist.live`;
         }
-
-        const result = await response.json();
-
-        // Update post state management
-        if (result.post?.id) {
-          setCurrentPostId(result.post.id);
-          setIsEditing(true);
-        }
-
-        const platformNames = selectedPlatforms
-          .map((id) => platformMapping[id])
-          .join(", ");
-
-        if (platformNames.includes("YouTube")) {
-          await uploadToYouTube(blocks);
-        }
-
-        if (platformNames.includes("Linkedin")) {
-          await uploadToLinkedIn(blocks);
-        }
-
-        if (platformNames.includes("Facebook")) {
-          const message = "Hello, this is a test post from my app!";
-          const accessToken = socialCreds?.facebook as string;
-          await postToFacebook(accessToken, message);
-        }
-        const description =
-          isScheduled && scheduledDate
-            ? `Scheduled for ${new Date(
-                scheduledDate
-              ).toLocaleString()} on ${platformNames}`
-            : `Published to: ${platformNames}`;
-
-        toast({ title: "Success", description });
-
-        // Refresh calendar data if post was scheduled
-        if (isScheduled) {
-          await refreshCalendarData();
-        }
-
-        setSelectedPlatforms([]);
       } else {
-        // If no platforms selected, just show success for Globalist.live publishing
-        const description =
-          isScheduled && scheduledDate
-            ? `Scheduled for ${new Date(
-                scheduledDate
-              ).toLocaleString()} on Globalist.live`
-            : `Published to Globalist.live`;
-
-        toast({ title: "Success", description });
-
-        // Refresh calendar data if post was scheduled
-        if (isScheduled) {
-          await refreshCalendarData();
+        if (selectedPlatforms.length > 0) {
+          description = `Published to: ${platformNames}`;
+        } else {
+          description = `Published to Globalist.live`;
         }
       }
+
+      toast({ title: "Success", description });
+
+      // Refresh calendar data if post was scheduled
+      if (isScheduled) {
+        await refreshCalendarData();
+      }
+
+      setSelectedPlatforms([]);
 
       // Handle scheduled publishing
       if (isScheduled && scheduledDate) {
