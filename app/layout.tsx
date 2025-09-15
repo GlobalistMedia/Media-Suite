@@ -1,8 +1,24 @@
 import "./globals.css";
 import type { Metadata } from "next";
+import { Inter, Poppins } from "next/font/google";
 import Providers from "./providers"; // 1. Import your new wrapper component
 // import { Header } from "@/components/header";
 // import { Footer } from "@/components/footer";
+
+// Configure Inter font (similar to the clean sans-serif in your image)
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+// Configure Poppins as an alternative (also very clean and modern)
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-poppins",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Globalist Media Suite",
@@ -17,7 +33,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${inter.variable} ${poppins.variable}`}
+    >
       <head>
         <link rel="icon" href="/favicon.ico" sizes="32x32" />
         <link
@@ -32,7 +52,7 @@ export default function RootLayout({
           sizes="180x180"
         />
       </head>
-      <body>
+      <body className="font-inter antialiased">
         {/* 2. Use the Providers component to wrap your children */}
         <Providers>
           {/* <Header /> */}
