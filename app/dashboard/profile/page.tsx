@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useState, useRef, useCallback } from "react";
+import NextImage from "next/image";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +30,6 @@ import {
   Save,
   X,
   Camera,
-  Trash2,
   Upload,
   RotateCcw,
   Loader2,
@@ -39,15 +39,13 @@ import {
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  
+
   const [isEditing, setIsEditing] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
-  
-  // Discord-style editing states
+
+  // Image editing states
   const [showImageEditDialog, setShowImageEditDialog] = useState(false);
-  const [showEditProfileDialog, setShowEditProfileDialog] = useState(false);
   const [tempImageUrl, setTempImageUrl] = useState("");
   const [originalImageUrl, setOriginalImageUrl] = useState("");
   const [imageZoom, setImageZoom] = useState(1);
@@ -55,7 +53,9 @@ export default function ProfilePage() {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
-  const [uploadHistory, setUploadHistory] = useState<string[]>([]);
+  const [editedImageUrl, setEditedImageUrl] = useState<string | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isDeletingProfile, setIsDeletingProfile] = useState(false);
 
   const {
     profileData,
@@ -67,7 +67,6 @@ export default function ProfilePage() {
     uploadProfilePicture,
     removeProfilePicture,
     deleteAccount,
-    refreshProfile,
   } = useProfile();
 
   const [editData, setEditData] = useState({
@@ -99,7 +98,8 @@ export default function ProfilePage() {
   const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB limit
         toast({
           title: "File Too Large",
           description: "Please select an image smaller than 10MB.",
@@ -108,7 +108,7 @@ export default function ProfilePage() {
         return;
       }
 
-      if (!file.type.startsWith('image/')) {
+      if (!file.type.startsWith("image/")) {
         toast({
           title: "Invalid File Type",
           description: "Please select a valid image file.",
@@ -124,7 +124,6 @@ export default function ProfilePage() {
         setTempImageUrl(result);
         setImageZoom(1);
         setImagePosition({ x: 0, y: 0 });
-        setShowEditProfileDialog(false);
         setShowImageEditDialog(true);
       };
       reader.readAsDataURL(file);
@@ -132,63 +131,71 @@ export default function ProfilePage() {
   };
 
   // Create canvas to generate resized image
-  const createResizedImage = useCallback((
-    imageUrl: string,
-    zoom: number,
-    position: { x: number; y: number },
-    size: number = 300
-  ): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      canvas.width = size;
-      canvas.height = size;
-      
-      img.onload = () => {
-        if (!ctx) {
-          reject(new Error('Canvas context not available'));
-          return;
-        }
-        
-        // Clear canvas with white background
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, size, size);
-        
-        // Calculate image dimensions and position
-        const scaledWidth = img.width * zoom;
-        const scaledHeight = img.height * zoom;
-        
-        // Center the image and apply position offset
-        const x = (size - scaledWidth) / 2 + position.x;
-        const y = (size - scaledHeight) / 2 + position.y;
-        
-        // Draw the image
-        ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
-        
-        // Convert to blob and create URL
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            resolve(url);
-          } else {
-            reject(new Error('Failed to create blob'));
-          }
-        }, 'image/jpeg', 0.9);
-      };
-      
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.crossOrigin = 'anonymous';
-      img.src = imageUrl;
-    });
-  }, []);
+  const createResizedImage = useCallback(
+    (
+      imageUrl: string,
+      zoom: number,
+      position: { x: number; y: number },
+      size: number = 300
+    ): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const img = new window.Image();
 
-  // Handle image upload
+        canvas.width = size;
+        canvas.height = size;
+
+        img.onload = () => {
+          if (!ctx) {
+            reject(new Error("Canvas context not available"));
+            return;
+          }
+
+          // Clear canvas with white background
+          ctx.fillStyle = "#ffffff";
+          ctx.fillRect(0, 0, size, size);
+
+          // Calculate image dimensions and position
+          const scaledWidth = img.width * zoom;
+          const scaledHeight = img.height * zoom;
+
+          // Center the image and apply position offset
+          const x = (size - scaledWidth) / 2 + position.x;
+          const y = (size - scaledHeight) / 2 + position.y;
+
+          // Draw the image
+          ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+
+          // Convert to blob and create URL
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                resolve(url);
+              } else {
+                reject(new Error("Failed to create blob"));
+              }
+            },
+            "image/jpeg",
+            0.9
+          );
+        };
+
+        img.onerror = () => reject(new Error("Failed to load image"));
+        img.crossOrigin = "anonymous";
+        img.src = imageUrl;
+      });
+    },
+    []
+  );
+
+  // Handle image upload with editor
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB limit
         toast({
           title: "File Too Large",
           description: "Please select an image smaller than 10MB.",
@@ -197,7 +204,7 @@ export default function ProfilePage() {
         return;
       }
 
-      if (!file.type.startsWith('image/')) {
+      if (!file.type.startsWith("image/")) {
         toast({
           title: "Invalid File Type",
           description: "Please select a valid image file.",
@@ -213,7 +220,6 @@ export default function ProfilePage() {
         setTempImageUrl(result);
         setImageZoom(1);
         setImagePosition({ x: 0, y: 0 });
-        setShowEditProfileDialog(false);
         setShowImageEditDialog(true);
       };
       reader.readAsDataURL(file);
@@ -234,7 +240,7 @@ export default function ProfilePage() {
     if (isDragging) {
       const newX = e.clientX - dragStart.x;
       const newY = e.clientY - dragStart.y;
-      
+
       // Constrain movement within reasonable bounds
       const maxMove = 150;
       setImagePosition({
@@ -263,7 +269,7 @@ export default function ProfilePage() {
       const touch = e.touches[0];
       const newX = touch.clientX - dragStart.x;
       const newY = touch.clientY - dragStart.y;
-      
+
       const maxMove = 150;
       setImagePosition({
         x: Math.max(-maxMove, Math.min(maxMove, newX)),
@@ -282,12 +288,10 @@ export default function ProfilePage() {
     setImagePosition({ x: 0, y: 0 });
   };
 
-  // Save the edited image with transformations applied
+  // Save the edited image with transformations applied (just close dialog, don't upload yet)
   const handleSaveEditedImage = async () => {
     if (!originalImageUrl) return;
 
-    setIsUploadingAvatar(true);
-    
     try {
       // Create the resized image
       const resizedImageUrl = await createResizedImage(
@@ -297,38 +301,27 @@ export default function ProfilePage() {
         400 // High quality output
       );
 
-      // Add to upload history
-      setUploadHistory(prev => [resizedImageUrl, ...prev.slice(0, 4)]); // Keep last 5 uploads
-
-      // Update profile data
-      // setProfileData(prev => ({
-      //   ...prev,
-      //   profilePicture: resizedImageUrl
-      // }));
+      // Store the edited image for later upload
+      setEditedImageUrl(resizedImageUrl);
 
       // Clean up temporary states
       setShowImageEditDialog(false);
       setTempImageUrl("");
       setOriginalImageUrl("");
       resetImageTransform();
-      
-      // Clear file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      
+
       toast({
-        title: "Profile Picture Updated",
-        description: "Your profile picture has been saved with the applied transformations.",
+        title: "Image Ready",
+        description:
+          "Your image has been prepared. Click 'Save Changes' to apply it.",
       });
     } catch (error) {
+      console.error("Error processing edited image:", error);
       toast({
-        title: "Save Failed",
-        description: "Failed to save the edited image. Please try again.",
+        title: "Processing Failed",
+        description: "Failed to process the edited image. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsUploadingAvatar(false);
     }
   };
 
@@ -339,50 +332,46 @@ export default function ProfilePage() {
     );
     if (!confirmed) return;
 
-    setIsUploadingAvatar(true);
+    setIsDeletingProfile(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Use the hook to remove the profile picture
+      const removeSuccess = await removeProfilePicture();
 
-      // Revoke the current avatar URL if it's a blob URL
-      if (profileData?.profilePicture?.startsWith('blob:')) {
-        URL.revokeObjectURL(profileData.profilePicture);
+      if (removeSuccess) {
+        // Revoke the current avatar URL if it's a blob URL
+        if (profileData?.profilePicture?.startsWith("blob:")) {
+          URL.revokeObjectURL(profileData.profilePicture);
+        }
+
+        // Clear any temporary states
+        setTempImageUrl("");
+        setOriginalImageUrl("");
+        resetImageTransform();
       }
-
-      // Reset to default avatar
-      // setProfileData(prev => ({
-      //   ...prev,
-      //   profilePicture: "/placeholder-avatar.jpg"
-      // }));
-
-      // Clear any temporary states
-      setTempImageUrl("");
-      setOriginalImageUrl("");
-      resetImageTransform();
-      
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      toast({
-        title: "Profile Picture Deleted",
-        description: "Your profile picture has been removed successfully.",
-      });
     } catch (error) {
+      console.error("Error deleting profile picture:", error);
       toast({
         title: "Delete Failed",
         description: "Failed to delete profile picture. Please try again.",
         variant: "destructive",
       });
     } finally {
-      setIsUploadingAvatar(false);
+      setIsDeletingProfile(false);
     }
   };
 
-  // Handle edit profile click
-  const handleEditProfileClick = () => {
-    setShowEditProfileDialog(true);
+  // Handle camera icon click (direct image upload)
+  const handleCameraClick = () => {
+    // Create a temporary file input for the editor
+    const tempInput = document.createElement("input");
+    tempInput.type = "file";
+    tempInput.accept = "image/*";
+    tempInput.onchange = (e) => {
+      const event = e as unknown as React.ChangeEvent<HTMLInputElement>;
+      handleImageUpload(event);
+    };
+    tempInput.click();
   };
 
   // Handle cancel image editing
@@ -390,31 +379,8 @@ export default function ProfilePage() {
     setShowImageEditDialog(false);
     setTempImageUrl("");
     setOriginalImageUrl("");
+    setEditedImageUrl(null); // Clear any edited image
     resetImageTransform();
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  // Handle selecting from upload history
-  const handleSelectFromHistory = (imageUrl: string) => {
-    setTempImageUrl(imageUrl);
-    
-    setShowEditProfileDialog(false);
-    
-    toast({
-      title: "Profile Picture Updated",
-      description: "Selected image from upload history.",
-    });
-  };
-
-  const triggerFileInput = () => {
-    fileInputRef.current?.click();
-  };
-
-  const getAvatarUrl = () => {
-    return profileData?.profilePicture;
   };
 
   const getUserInitials = () => {
@@ -426,15 +392,54 @@ export default function ProfilePage() {
   };
 
   const handleSave = async () => {
-    const success = await updateProfile(editData);
-    if (success) {
-      setIsEditing(false);
+    setIsSavingProfile(true);
+
+    try {
+      // First upload the edited image if there is one
+      if (editedImageUrl) {
+        try {
+          const response = await fetch(editedImageUrl);
+          const blob = await response.blob();
+          const file = new File([blob], "profile-picture.jpg", {
+            type: "image/jpeg",
+          });
+
+          const uploadSuccess = await uploadProfilePicture(file);
+          if (!uploadSuccess) {
+            toast({
+              title: "Upload Failed",
+              description:
+                "Failed to upload profile picture. Please try again.",
+              variant: "destructive",
+            });
+            return;
+          }
+        } catch (error) {
+          console.error("Error uploading edited image:", error);
+          toast({
+            title: "Upload Failed",
+            description: "Failed to upload profile picture. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Then update the profile data
+      const success = await updateProfile(editData);
+      if (success) {
+        setIsEditing(false);
+        setEditedImageUrl(null); // Clear the edited image after successful save
+      }
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
   const handleCancel = () => {
     setIsEditing(false);
     handleCancelImageEdit();
+    setEditedImageUrl(null); // Clear any edited image
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -463,7 +468,9 @@ export default function ProfilePage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <h2 className="text-xl font-semibold mb-2">Profile Not Found</h2>
-            <p className="text-muted-foreground">Unable to load profile data.</p>
+            <p className="text-muted-foreground">
+              Unable to load profile data.
+            </p>
           </div>
         </div>
       </div>
@@ -475,7 +482,9 @@ export default function ProfilePage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-8 gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Profile</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">
+            Profile
+          </h1>
           <p className="text-muted-foreground text-sm md:text-base">
             Manage your account settings and preferences
           </p>
@@ -483,30 +492,37 @@ export default function ProfilePage() {
         <div className="flex gap-2 w-full sm:w-auto">
           {isEditing ? (
             <>
-              <Button variant="outline" onClick={handleCancel} className="flex-1 sm:flex-none">
+              <Button
+                variant="outline"
+                onClick={handleCancel}
+                className="flex-1 sm:flex-none"
+              >
                 <X className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">Cancel</span>
               </Button>
-              <Button 
-                onClick={handleSave} 
-                disabled={updating}
+              <Button
+                onClick={handleSave}
+                disabled={updating || isSavingProfile}
                 className="flex-1 sm:flex-none"
               >
-                {updating ? (
+                {updating || isSavingProfile ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Save className="mr-2 h-4 w-4" />
                 )}
                 <span className="hidden sm:inline">
-                  {updating ? 'Saving...' : 'Save Changes'}
+                  {updating || isSavingProfile ? "Saving..." : "Save Changes"}
                 </span>
                 <span className="sm:hidden">
-                  {updating ? 'Saving...' : 'Save'}
+                  {updating || isSavingProfile ? "Saving..." : "Save"}
                 </span>
               </Button>
             </>
           ) : (
-            <Button onClick={() => setIsEditing(true)} className="w-full sm:w-auto">
+            <Button
+              onClick={() => setIsEditing(true)}
+              className="w-full sm:w-auto"
+            >
               <Edit3 className="mr-2 h-4 w-4" />
               Edit Profile
             </Button>
@@ -521,11 +537,11 @@ export default function ProfilePage() {
           <Card className="p-4 md:p-6 bg-card border-border">
             <div className="text-center">
               <div className="relative inline-block mb-4">
-                <div 
+                <div
                   className="relative group cursor-pointer"
                   onMouseEnter={() => setIsHoveringAvatar(true)}
                   onMouseLeave={() => setIsHoveringAvatar(false)}
-                  onClick={isEditing ? handleEditProfileClick : undefined}
+                  onClick={isEditing ? handleCameraClick : undefined}
                 >
                   <Avatar className="w-20 h-20 md:w-24 md:h-24">
                     <AvatarImage
@@ -539,9 +555,11 @@ export default function ProfilePage() {
 
                   {/* Discord-style hover overlay */}
                   {isEditing && (
-                    <div className={`absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center transition-opacity duration-200 ${
-                      isHoveringAvatar ? 'opacity-100' : 'opacity-0'
-                    }`}>
+                    <div
+                      className={`absolute inset-0 bg-black bg-opacity-50 rounded-full flex items-center justify-center transition-opacity duration-200 ${
+                        isHoveringAvatar ? "opacity-100" : "opacity-0"
+                      }`}
+                    >
                       <Camera className="w-5 h-5 text-white" />
                     </div>
                   )}
@@ -550,7 +568,7 @@ export default function ProfilePage() {
                 {/* Discord-style edit pen */}
                 {isEditing && (
                   <button
-                    onClick={handleEditProfileClick}
+                    onClick={handleCameraClick}
                     className="absolute -bottom-2 -right-2 bg-primary hover:bg-primary/90 text-primary-foreground rounded-full p-1.5 text-xs shadow-lg transition-colors duration-200"
                   >
                     <Camera className="w-3 h-3" />
@@ -558,14 +576,20 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <h2 className="text-lg md:text-xl font-semibold mb-1 text-foreground">{profileData.name}</h2>
-              <p className="text-muted-foreground mb-3 text-sm md:text-base">{profileData.email}</p>
+              <h2 className="text-lg md:text-xl font-semibold mb-1 text-foreground">
+                {profileData.name}
+              </h2>
+              <p className="text-muted-foreground mb-3 text-sm md:text-base">
+                {profileData.email}
+              </p>
             </div>
           </Card>
 
           {/* Quick Stats */}
           <Card className="p-4 md:p-6 bg-card border-border">
-            <h3 className="font-semibold mb-4 text-foreground">Account Stats</h3>
+            <h3 className="font-semibold mb-4 text-foreground">
+              Account Stats
+            </h3>
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Content Created</span>
@@ -577,7 +601,9 @@ export default function ProfilePage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Member Since</span>
-                <span className="font-medium text-foreground">{profileData.joinDate}</span>
+                <span className="font-medium text-foreground">
+                  {profileData.joinDate}
+                </span>
               </div>
             </div>
           </Card>
@@ -615,7 +641,7 @@ export default function ProfilePage() {
                       Deleting...
                     </>
                   ) : (
-                    'Delete Account'
+                    "Delete Account"
                   )}
                 </Button>
               </div>
@@ -626,10 +652,14 @@ export default function ProfilePage() {
         {/* Right Column - Detailed Information */}
         <div className="space-y-6">
           <Card className="p-4 md:p-6 bg-card border-border">
-            <h3 className="text-lg font-semibold mb-4 text-foreground">Personal Information</h3>
+            <h3 className="text-lg font-semibold mb-4 text-foreground">
+              Personal Information
+            </h3>
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
               <div>
-                <Label htmlFor="name" className="text-foreground">Full Name</Label>
+                <Label htmlFor="name" className="text-foreground">
+                  Full Name
+                </Label>
                 {isEditing ? (
                   <Input
                     id="name"
@@ -646,7 +676,9 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <Label htmlFor="email" className="text-foreground">Email</Label>
+                <Label htmlFor="email" className="text-foreground">
+                  Email
+                </Label>
                 {isEditing ? (
                   <Input
                     id="email"
@@ -664,7 +696,9 @@ export default function ProfilePage() {
               </div>
 
               <div>
-                <Label htmlFor="phone" className="text-foreground">Phone</Label>
+                <Label htmlFor="phone" className="text-foreground">
+                  Phone
+                </Label>
                 {isEditing ? (
                   <Input
                     id="phone"
@@ -676,13 +710,15 @@ export default function ProfilePage() {
                 ) : (
                   <div className="flex items-center mt-1 p-2 text-foreground">
                     <Phone className="mr-2 h-4 w-4 text-muted-foreground" />
-                    {profileData.phone || 'Not provided'}
+                    {profileData.phone || "Not provided"}
                   </div>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="location" className="text-foreground">Location</Label>
+                <Label htmlFor="location" className="text-foreground">
+                  Location
+                </Label>
                 {isEditing ? (
                   <Input
                     id="location"
@@ -696,7 +732,7 @@ export default function ProfilePage() {
                 ) : (
                   <div className="flex items-center mt-1 p-2 text-foreground">
                     <MapPin className="mr-2 h-4 w-4 text-muted-foreground" />
-                    {profileData.location || 'Not provided'}
+                    {profileData.location || "Not provided"}
                   </div>
                 )}
               </div>
@@ -707,14 +743,16 @@ export default function ProfilePage() {
                   <Input
                     id="company"
                     value={editData.company}
-                    onChange={(e) => handleInputChange("company", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("company", e.target.value)
+                    }
                     className="mt-1"
                     placeholder="Enter company name"
                   />
                 ) : (
                   <div className="flex items-center mt-1 p-2">
                     <Building className="mr-2 h-4 w-4 text-muted-foreground" />
-                    {profileData.company || 'Not provided'}
+                    {profileData.company || "Not provided"}
                   </div>
                 )}
               </div>
@@ -725,7 +763,9 @@ export default function ProfilePage() {
                   <Input
                     id="website"
                     value={editData.website}
-                    onChange={(e) => handleInputChange("website", e.target.value)}
+                    onChange={(e) =>
+                      handleInputChange("website", e.target.value)
+                    }
                     className="mt-1"
                     placeholder="https://example.com"
                   />
@@ -733,16 +773,16 @@ export default function ProfilePage() {
                   <div className="flex items-center mt-1 p-2">
                     <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
                     {profileData.website ? (
-                      <a 
-                        href={profileData.website} 
-                        target="_blank" 
+                      <a
+                        href={profileData.website}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-blue-600 hover:underline"
                       >
                         {profileData.website}
                       </a>
                     ) : (
-                      'Not provided'
+                      "Not provided"
                     )}
                   </div>
                 )}
@@ -752,7 +792,9 @@ export default function ProfilePage() {
             <Separator className="my-4" />
 
             <div>
-              <Label htmlFor="bio" className="text-foreground">Bio</Label>
+              <Label htmlFor="bio" className="text-foreground">
+                Bio
+              </Label>
               {isEditing ? (
                 <Textarea
                   id="bio"
@@ -763,7 +805,9 @@ export default function ProfilePage() {
                   placeholder="Tell us about yourself..."
                 />
               ) : (
-                <p className="mt-1 p-2 text-sm text-foreground">{profileData.bio}</p>
+                <p className="mt-1 p-2 text-sm text-foreground">
+                  {profileData.bio}
+                </p>
               )}
             </div>
           </Card>
@@ -773,106 +817,20 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleImageUpload}
-        className="hidden"
-      />
-
       {/* Hidden canvas for image processing */}
       <canvas ref={canvasRef} className="hidden" />
-
-      {/* Discord-style Edit Profile Dialog - Rounded and Centered */}
-      <Dialog open={showEditProfileDialog} onOpenChange={setShowEditProfileDialog}>
-        <DialogContent className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl rounded-2xl shadow-2xl border-0 p-0 bg-background">
-          <div className="bg-background rounded-2xl p-6 sm:p-8">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">Edit Profile Picture</DialogTitle>
-              <DialogDescription className="text-muted-foreground">
-                Upload a new image, select from recent uploads, or delete your current picture.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="flex justify-center">
-                <div className="relative w-32 h-32">
-                  <Avatar className="w-full h-full">
-                    <AvatarImage
-                      src={profileData.profilePicture}
-                      alt="Current Profile Picture"
-                    />
-                    <AvatarFallback className="text-2xl bg-muted text-muted-foreground">
-                      {getUserInitials()}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              </div>
-              
-              <div className="space-y-3">
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full"
-                  size="lg"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload from Device
-                </Button>
-                
-                {profileData.profilePicture !== "/placeholder-avatar.jpg" && (
-                  <Button
-                    onClick={handleDeleteProfilePicture}
-                    variant="outline"
-                    className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
-                    disabled={isUploadingAvatar}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    {isUploadingAvatar ? "Deleting..." : "Delete Picture"}
-                  </Button>
-                )}
-              </div>
-
-              {/* Upload History - Only shown in Edit Profile Dialog */}
-              {uploadHistory.length > 0 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-medium text-foreground">Recent Uploads</Label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {uploadHistory.map((url, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSelectFromHistory(url)}
-                        className="aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors"
-                        title={`Use upload ${index + 1}`}
-                      >
-                        <img src={url} alt={`Upload ${index + 1}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-            <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-4">
-              <Button
-                variant="outline"
-                onClick={() => setShowEditProfileDialog(false)}
-                className="w-full sm:w-auto"
-              >
-                Cancel
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
 
       {/* Discord-style Image Edit Dialog - Rounded and Centered */}
       <Dialog open={showImageEditDialog} onOpenChange={setShowImageEditDialog}>
         <DialogContent className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-md sm:max-w-lg md:max-w-xl lg:max-w-2xl max-h-[85vh] rounded-2xl shadow-2xl border-0 p-0 overflow-y-auto bg-background">
           <div className="bg-background rounded-2xl p-6 sm:p-8">
             <DialogHeader>
-              <DialogTitle className="text-foreground">Resize Your Image</DialogTitle>
+              <DialogTitle className="text-foreground">
+                Resize Your Image
+              </DialogTitle>
               <DialogDescription className="text-muted-foreground">
-                Adjust your image by zooming and positioning it. The final result will be saved permanently.
+                Adjust your image by zooming and positioning it. The final
+                result will be saved permanently.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
@@ -890,10 +848,11 @@ export default function ProfilePage() {
                       onTouchMove={handleTouchMove}
                       onTouchEnd={handleTouchEnd}
                     >
-                      <img
+                      <NextImage
                         src={tempImageUrl}
                         alt="Preview"
-                        className="w-full h-full object-cover pointer-events-none"
+                        fill
+                        className="object-cover pointer-events-none"
                         style={{
                           transform: `scale(${imageZoom}) translate(${imagePosition.x}px, ${imagePosition.y}px)`,
                         }}
@@ -903,11 +862,14 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
-              
+
               {/* Zoom Control */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="zoom" className="text-sm font-medium text-foreground">
+                  <Label
+                    htmlFor="zoom"
+                    className="text-sm font-medium text-foreground"
+                  >
                     Zoom
                   </Label>
                   <span className="text-sm text-muted-foreground">
@@ -925,25 +887,39 @@ export default function ProfilePage() {
                   className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
                 />
               </div>
-              
+
               {/* Position Info */}
               <div className="text-center text-xs text-muted-foreground">
-                <p>Drag the image to reposition • Position: ({imagePosition.x}, {imagePosition.y})</p>
+                <p>
+                  Drag the image to reposition • Position: ({imagePosition.x},{" "}
+                  {imagePosition.y})
+                </p>
               </div>
-              
+
               {/* Upload Guidelines - Only shown in Image Edit Dialog */}
               <div className="text-xs text-muted-foreground bg-muted p-2 rounded">
                 <p>• Supported formats: JPEG, PNG, GIF, WebP</p>
                 <p>• Maximum size: 10MB</p>
                 <p>• Transformations are saved permanently</p>
               </div>
-              
+
               {/* Action Buttons */}
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => {
+                    // Create a temporary file input for the editor
+                    const tempInput = document.createElement("input");
+                    tempInput.type = "file";
+                    tempInput.accept = "image/*";
+                    tempInput.onchange = (e) => {
+                      const event =
+                        e as unknown as React.ChangeEvent<HTMLInputElement>;
+                      handleImageUpload(event);
+                    };
+                    tempInput.click();
+                  }}
                   className="flex-1"
                 >
                   <Upload className="w-4 h-4 mr-2" />
@@ -969,12 +945,12 @@ export default function ProfilePage() {
               >
                 Cancel
               </Button>
-              <Button 
+              <Button
                 onClick={handleSaveEditedImage}
                 className="w-full sm:w-auto m-2"
                 disabled={isUploadingAvatar}
               >
-                {isUploadingAvatar ? "Saving..." : "Save Changes"}
+                {isUploadingAvatar ? "Saving..." : "OK"}
               </Button>
             </DialogFooter>
           </div>
