@@ -213,9 +213,15 @@ export function PrivacySettings() {
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
 
-          alert("Your data has been exported successfully!");
+          toast({
+            title: "Data exported successfully",
+            description: "Your data has been exported successfully!",
+          });
         } else {
-          alert("Export not supported in this browser.");
+          toast({
+            title: "Export not supported in this browser.",
+            description: "Please try again.",
+          });
         }
       }
     } catch (error) {
