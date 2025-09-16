@@ -14,8 +14,19 @@ import {
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Shield, Eye, Download, Save, FileText, User, Mail, Calendar, Settings } from "lucide-react";
+import {
+  Shield,
+  Eye,
+  Download,
+  Save,
+  FileText,
+  User,
+  Mail,
+  Calendar,
+  Settings,
+} from "lucide-react";
 import axios from "axios";
+import { toast } from "@/hooks/use-toast";
 
 export function PrivacySettings() {
   const { data: session } = useSession();
@@ -33,6 +44,8 @@ export function PrivacySettings() {
   const [userData, setUserData] = useState<any>(null);
   const [isLoadingUserData, setIsLoadingUserData] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [emailLists, setEmailLists] = useState<any[]>([]);
+  const [isLoadingEmailLists, setIsLoadingEmailLists] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -40,12 +53,20 @@ export function PrivacySettings() {
 
   const loadSettings = async () => {
     try {
-      const response = await axios.get('/api/settings');
+      const response = await axios.get("/api/settings");
       if (response.data.success && response.data.data.privacy) {
         setPrivacy(response.data.data.privacy);
+      } else {
+        toast({
+          title: "Error loading privacy settings",
+          description: "Please try again.",
+        });
       }
     } catch (error) {
-      console.error('Error loading privacy settings:', error);
+      toast({
+        title: "Error loading privacy settings",
+        description: "Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -58,17 +79,23 @@ export function PrivacySettings() {
   const saveSettings = async () => {
     setIsSaving(true);
     try {
-      const response = await axios.patch('/api/settings', {
-        category: 'privacy',
-        data: privacy
+      const response = await axios.patch("/api/settings", {
+        category: "privacy",
+        data: privacy,
       });
-      
+
       if (response.data.success) {
         setLastSaved(new Date().toLocaleTimeString());
+        toast({
+          title: "Privacy settings saved successfully",
+          description: "Your privacy settings have been saved.",
+        });
       }
     } catch (error: any) {
-      console.error('Error saving privacy settings:', error);
-      alert('Error saving settings. Please try again.');
+      toast({
+        title: "Error saving privacy settings",
+        description: "Please try again.",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -77,40 +104,78 @@ export function PrivacySettings() {
   const loadUserData = async () => {
     setIsLoadingUserData(true);
     try {
-      const response = await axios.get('/api/settings');
+      const response = await axios.get("/api/settings");
       if (response.data.success) {
         setUserData(response.data.data);
       }
     } catch (error) {
-      console.error('Error loading user data:', error);
-      alert('Error loading user data. Please try again.');
+      toast({
+        title: "Error loading user data",
+        description: "Please try again.",
+      });
     } finally {
       setIsLoadingUserData(false);
     }
   };
 
+  const loadEmailLists = async () => {
+    setIsLoadingEmailLists(true);
+    try {
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=${session?.user?.email}&page=1&limit=10000`
+      );
+      if (response.data.status === 200 && response.data.response.emails) {
+        const emailLists = response.data.response.emails;
+        setEmailLists(emailLists);
+      } else {
+        setEmailLists([]);
+      }
+    } catch (error) {
+      toast({
+        title: "Error loading email lists",
+        description: "Please try again.",
+      });
+      setEmailLists([]);
+    } finally {
+      setIsLoadingEmailLists(false);
+    }
+  };
+
   const handleViewData = async () => {
-    await loadUserData();
+    await Promise.all([loadUserData(), loadEmailLists()]);
     setViewDataDialog(true);
   };
 
   const handleExportData = async () => {
     setIsExporting(true);
     try {
-      const response = await axios.get('/api/settings');
-      if (response.data.success) {
-        const userData = response.data.data;
-        
+      const [settingsResponse, emailListsResponse] = await Promise.all([
+        axios.get("/api/settings"),
+        axios.get(
+          `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=${session?.user?.email}&page=1&limit=10000`
+        ),
+      ]);
+
+      if (settingsResponse.data.success) {
+        const userData = settingsResponse.data.data;
+        const emailLists =
+          emailListsResponse.data.status === 200 &&
+          emailListsResponse.data.response.emails
+            ? emailListsResponse.data.response.emails
+            : [];
+
         // Create comprehensive export data
         const exportData = {
           exportDate: new Date().toISOString(),
           profile: {
-            name: session?.user?.name || userData.profile?.name || 'Not provided',
-            email: session?.user?.email || userData.profile?.email || 'Not provided',
-            bio: userData.profile?.bio || 'Not provided',
-            website: userData.profile?.website || 'Not provided',
-            location: userData.profile?.location || 'Not provided',
-            timezone: userData.profile?.timezone || 'Not provided',
+            name:
+              session?.user?.name || userData.profile?.name || "Not provided",
+            email:
+              session?.user?.email || userData.profile?.email || "Not provided",
+            bio: userData.profile?.bio || "Not provided",
+            website: userData.profile?.website || "Not provided",
+            location: userData.profile?.location || "Not provided",
+            timezone: userData.profile?.timezone || "Not provided",
           },
           settings: {
             notifications: userData.notifications || {},
@@ -118,41 +183,52 @@ export function PrivacySettings() {
             preferences: userData.preferences || {},
           },
           emailSettings: {
-            lists: userData.emailSettings?.lists || [],
+            lists: emailLists,
             trackOpens: userData.emailSettings?.trackOpens || false,
             trackClicks: userData.emailSettings?.trackClicks || false,
           },
           platformIntegrations: userData.platformIntegrations || {},
           accountInfo: {
-            createdAt: userData.createdAt || 'Unknown',
-            lastLogin: userData.lastLogin || 'Unknown',
-            plan: userData.plan || 'Free',
-          }
+            createdAt: userData.createdAt || "Unknown",
+            lastLogin: userData.lastLogin || "Unknown",
+            plan: userData.plan || "Free",
+          },
         };
 
         // Create and download JSON file
         const jsonContent = JSON.stringify(exportData, null, 2);
-        const blob = new Blob([jsonContent], { type: 'application/json' });
-        const link = document.createElement('a');
-        
+        const blob = new Blob([jsonContent], { type: "application/json" });
+        const link = document.createElement("a");
+
         if (link.download !== undefined) {
           const url = URL.createObjectURL(blob);
-          link.setAttribute('href', url);
-          link.setAttribute('download', `user_data_export_${new Date().toISOString().split('T')[0]}.json`);
-          link.style.visibility = 'hidden';
+          link.setAttribute("href", url);
+          link.setAttribute(
+            "download",
+            `user_data_export_${new Date().toISOString().split("T")[0]}.json`
+          );
+          link.style.visibility = "hidden";
           document.body.appendChild(link);
           link.click();
           document.body.removeChild(link);
           URL.revokeObjectURL(url);
-          
-          alert('Your data has been exported successfully!');
+
+          toast({
+            title: "Data exported successfully",
+            description: "Your data has been exported successfully!",
+          });
         } else {
-          alert('Export not supported in this browser.');
+          toast({
+            title: "Export not supported in this browser.",
+            description: "Please try again.",
+          });
         }
       }
     } catch (error) {
-      console.error('Error exporting user data:', error);
-      alert('Error exporting data. Please try again.');
+      toast({
+        title: "Error exporting user data",
+        description: "Please try again.",
+      });
     } finally {
       setIsExporting(false);
     }
@@ -281,8 +357,8 @@ export function PrivacySettings() {
                 <DialogHeader>
                   <DialogTitle>Your Data</DialogTitle>
                 </DialogHeader>
-                
-                {isLoadingUserData ? (
+
+                {isLoadingUserData || isLoadingEmailLists ? (
                   <div className="space-y-4">
                     <div className="animate-pulse">
                       <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -301,22 +377,32 @@ export function PrivacySettings() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <div>
-                          <span className="font-medium">Name:</span> {session?.user?.name || userData.profile?.name || 'Not provided'}
+                          <span className="font-medium">Name:</span>{" "}
+                          {session?.user?.name ||
+                            userData.profile?.name ||
+                            "Not provided"}
                         </div>
                         <div>
-                          <span className="font-medium">Email:</span> {session?.user?.email || userData.profile?.email || 'Not provided'}
+                          <span className="font-medium">Email:</span>{" "}
+                          {session?.user?.email ||
+                            userData.profile?.email ||
+                            "Not provided"}
                         </div>
                         <div>
-                          <span className="font-medium">Bio:</span> {userData.profile?.bio || 'Not provided'}
+                          <span className="font-medium">Bio:</span>{" "}
+                          {userData.profile?.bio || "Not provided"}
                         </div>
                         <div>
-                          <span className="font-medium">Website:</span> {userData.profile?.website || 'Not provided'}
+                          <span className="font-medium">Website:</span>{" "}
+                          {userData.profile?.website || "Not provided"}
                         </div>
                         <div>
-                          <span className="font-medium">Location:</span> {userData.profile?.location || 'Not provided'}
+                          <span className="font-medium">Location:</span>{" "}
+                          {userData.profile?.location || "Not provided"}
                         </div>
                         <div>
-                          <span className="font-medium">Timezone:</span> {userData.profile?.timezone || 'Not provided'}
+                          <span className="font-medium">Timezone:</span>{" "}
+                          {userData.profile?.timezone || "Not provided"}
                         </div>
                       </div>
                     </div>
@@ -327,22 +413,38 @@ export function PrivacySettings() {
                         <Mail className="h-5 w-5 text-green-600" />
                         <h4 className="font-semibold">Email Lists</h4>
                       </div>
-                      {userData.emailSettings?.lists?.length > 0 ? (
+                      {isLoadingEmailLists ? (
+                        <div className="animate-pulse">
+                          <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                        </div>
+                      ) : emailLists.length > 0 ? (
                         <div className="space-y-2 text-sm">
-                          {userData.emailSettings.lists.map((list: any, index: number) => (
+                          {emailLists.map((list: any, index: number) => (
                             <div key={index} className="bg-gray-50 p-3 rounded">
                               <div className="font-medium">{list.name}</div>
                               <div className="text-muted-foreground">
-                                {list.subscriberCount || 0} subscribers • Created: {new Date(list.createdAt).toLocaleDateString()}
+                                {list.subscriberCount || 0} subscribers •
+                                Created:{" "}
+                                {new Date(list.createdAt).toLocaleDateString()}
                               </div>
                               {list.description && (
-                                <div className="text-muted-foreground text-xs mt-1">{list.description}</div>
+                                <div className="text-muted-foreground text-xs mt-1">
+                                  {list.description}
+                                </div>
+                              )}
+                              {list.tags && list.tags.length > 0 && (
+                                <div className="text-muted-foreground text-xs mt-1">
+                                  Tags: {list.tags.join(", ")}
+                                </div>
                               )}
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No email lists created</p>
+                        <p className="text-sm text-muted-foreground">
+                          No email lists created
+                        </p>
                       )}
                     </div>
 
@@ -350,32 +452,64 @@ export function PrivacySettings() {
                     <div className="border rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-3">
                         <Settings className="h-5 w-5 text-purple-600" />
-                        <h4 className="font-semibold">Settings & Preferences</h4>
+                        <h4 className="font-semibold">
+                          Settings & Preferences
+                        </h4>
                       </div>
                       <div className="space-y-3 text-sm">
                         <div>
                           <span className="font-medium">Privacy Settings:</span>
                           <div className="ml-4 text-muted-foreground">
-                            • Profile Visibility: {userData.privacy?.profileVisibility ? 'Enabled' : 'Disabled'}<br/>
-                            • Data Collection: {userData.privacy?.dataCollection ? 'Enabled' : 'Disabled'}<br/>
-                            • Marketing Communications: {userData.privacy?.marketingCommunications ? 'Enabled' : 'Disabled'}
+                            • Profile Visibility:{" "}
+                            {privacy.profileVisibility ? "Enabled" : "Disabled"}
+                            <br />• Data Collection:{" "}
+                            {privacy.dataCollection ? "Enabled" : "Disabled"}
+                            <br />• Analytics Sharing:{" "}
+                            {privacy.analyticsSharing ? "Enabled" : "Disabled"}
+                            <br />• Marketing Communications:{" "}
+                            {privacy.marketingCommunications
+                              ? "Enabled"
+                              : "Disabled"}
+                            <br />• Third-party Integrations:{" "}
+                            {privacy.thirdPartyIntegrations
+                              ? "Enabled"
+                              : "Disabled"}
                           </div>
                         </div>
                         <div>
-                          <span className="font-medium">Platform Integrations:</span>
+                          <span className="font-medium">
+                            Platform Integrations:
+                          </span>
                           <div className="ml-4 text-muted-foreground">
-                            {userData.platformIntegrations && Array.isArray(userData.platformIntegrations) && userData.platformIntegrations.length > 0 ? (
-                              userData.platformIntegrations.map((integration: any, index: number) => (
-                                <div key={index}>
-                                  • {integration.platformId}: {integration.isConnected ? 'Connected' : 'Disconnected'}
-                                  {integration.username && (
-                                    <span className="text-xs"> (@{integration.username})</span>
-                                  )}
-                                  {integration.lastSync && integration.isConnected && (
-                                    <span className="text-xs"> • Last sync: {new Date(integration.lastSync).toLocaleDateString()}</span>
-                                  )}
-                                </div>
-                              ))
+                            {userData.platformIntegrations &&
+                            Array.isArray(userData.platformIntegrations) &&
+                            userData.platformIntegrations.length > 0 ? (
+                              userData.platformIntegrations.map(
+                                (integration: any, index: number) => (
+                                  <div key={index}>
+                                    • {integration.platformId}:{" "}
+                                    {integration.isConnected
+                                      ? "Connected"
+                                      : "Disconnected"}
+                                    {integration.username && (
+                                      <span className="text-xs">
+                                        {" "}
+                                        (@{integration.username})
+                                      </span>
+                                    )}
+                                    {integration.lastSync &&
+                                      integration.isConnected && (
+                                        <span className="text-xs">
+                                          {" "}
+                                          • Last sync:{" "}
+                                          {new Date(
+                                            integration.lastSync
+                                          ).toLocaleDateString()}
+                                        </span>
+                                      )}
+                                  </div>
+                                )
+                              )
                             ) : (
                               <div>• No platform integrations configured</div>
                             )}
@@ -392,16 +526,26 @@ export function PrivacySettings() {
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                         <div>
-                          <span className="font-medium">Account Created:</span> {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString() : 'Unknown'}
+                          <span className="font-medium">Account Created:</span>{" "}
+                          {userData.createdAt
+                            ? new Date(userData.createdAt).toLocaleDateString()
+                            : "Unknown"}
                         </div>
                         <div>
-                          <span className="font-medium">Last Login:</span> {userData.lastLogin ? new Date(userData.lastLogin).toLocaleDateString() : 'Unknown'}
+                          <span className="font-medium">Last Login:</span>{" "}
+                          {userData.lastLogin
+                            ? new Date(userData.lastLogin).toLocaleDateString()
+                            : "Unknown"}
                         </div>
                         <div>
-                          <span className="font-medium">Plan:</span> {userData.plan || 'Free'}
+                          <span className="font-medium">Plan:</span>{" "}
+                          {userData.plan || "Free"}
                         </div>
                         <div>
-                          <span className="font-medium">Total Email Lists:</span> {userData.emailSettings?.lists?.length || 0}
+                          <span className="font-medium">
+                            Total Email Lists:
+                          </span>{" "}
+                          {userData.emailSettings?.lists?.length || 0}
                         </div>
                       </div>
                     </div>
@@ -409,17 +553,22 @@ export function PrivacySettings() {
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <FileText className="h-4 w-4 text-blue-600" />
-                        <span className="font-medium text-blue-800">Data Export</span>
+                        <span className="font-medium text-blue-800">
+                          Data Export
+                        </span>
                       </div>
                       <p className="text-sm text-blue-700">
-                        You can export all of this data using the &quot;Export Data&quot; button. The export will include
-                        detailed information in JSON format for your records.
+                        You can export all of this data using the &quot;Export
+                        Data&quot; button. The export will include detailed
+                        information in JSON format for your records.
                       </p>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <p className="text-muted-foreground">No data available to display.</p>
+                    <p className="text-muted-foreground">
+                      No data available to display.
+                    </p>
                   </div>
                 )}
               </DialogContent>
@@ -433,7 +582,9 @@ export function PrivacySettings() {
             >
               <Download className="h-6 w-6" />
               <div className="text-center">
-                <p className="font-medium text-base">{isExporting ? 'Exporting...' : 'Export Data'}</p>
+                <p className="font-medium text-base">
+                  {isExporting ? "Exporting..." : "Export Data"}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   Download your data
                 </p>

@@ -3,13 +3,22 @@
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useState, useEffect } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState, useEffect, useCallback } from "react";
 import { Settings, Save, Globe, Clock, Palette, UserCheck } from "lucide-react";
 import axios from "axios";
-import { useRouter } from "next/navigation";
+import { toast } from "@/hooks/use-toast";
+import { useTheme } from "next-themes";
 
 export function GeneralSettings() {
+  const { setTheme, theme: currentTheme } = useTheme();
+
   const [settings, setSettings] = useState({
     timezone: "UTC",
     language: "en",
@@ -22,41 +31,128 @@ export function GeneralSettings() {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
+  const loadSettings = useCallback(async () => {
     try {
-      const response = await axios.get('/api/settings');
+      const response = await axios.get("/api/settings");
+      console.log("General settings response:", response.data);
       if (response.data.success && response.data.data.general) {
-        setSettings(response.data.data.general);
+        console.log(
+          "Loading general settings from database:",
+          response.data.data.general
+        );
+        const loadedSettings = response.data.data.general;
+        setSettings(loadedSettings);
+
+        // Apply theme from database
+        if (loadedSettings.theme) {
+          setTheme(loadedSettings.theme);
+        }
+      } else {
+        console.log("No general settings found in database, using defaults");
       }
     } catch (error) {
-      console.error('Error loading general settings:', error);
+      console.error("Error loading general settings:", error);
+      toast({
+        title: "Error loading general settings",
+        description: "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setTheme]);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
+
+  // No automatic sync - let user control the theme through the dropdown
 
   const handleSettingChange = (key: keyof typeof settings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+    setSettings((prev) => ({ ...prev, [key]: value }));
+
+    // Immediately apply theme changes
+    if (key === "theme") {
+      setTheme(value);
+    }
+  };
+
+  const validateSettings = (settingsToValidate: typeof settings) => {
+    const errors: string[] = [];
+
+    if (!settingsToValidate.timezone) {
+      errors.push("Timezone is required");
+    }
+
+    if (!settingsToValidate.language) {
+      errors.push("Language is required");
+    }
+
+    if (!settingsToValidate.dateFormat) {
+      errors.push("Date format is required");
+    }
+
+    if (
+      !settingsToValidate.timeFormat ||
+      !["12h", "24h"].includes(settingsToValidate.timeFormat)
+    ) {
+      errors.push("Time format must be 12h or 24h");
+    }
+
+    if (
+      !settingsToValidate.weekStart ||
+      !["monday", "sunday"].includes(settingsToValidate.weekStart)
+    ) {
+      errors.push("Week start must be monday or sunday");
+    }
+
+    if (
+      !settingsToValidate.theme ||
+      !["light", "dark", "system"].includes(settingsToValidate.theme)
+    ) {
+      errors.push("Theme must be light, dark, or system");
+    }
+
+    return errors;
   };
 
   const saveSettings = async () => {
+    // Validate settings before saving
+    const validationErrors = validateSettings(settings);
+    if (validationErrors.length > 0) {
+      toast({
+        title: "Invalid settings",
+        description: validationErrors.join(", "),
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSaving(true);
     try {
-      const response = await axios.patch('/api/settings', {
-        category: 'general',
-        data: settings
+      console.log("Saving general settings:", settings);
+      const response = await axios.patch("/api/settings", {
+        category: "general",
+        data: settings,
       });
-      
+      console.log("Save response:", response.data);
+
       if (response.data.success) {
         setLastSaved(new Date().toLocaleTimeString());
+        toast({
+          title: "General settings saved successfully",
+          description: "Your general settings have been saved.",
+        });
+      } else {
+        throw new Error(response.data.message || "Failed to save settings");
       }
     } catch (error: any) {
-      console.error('Error saving general settings:', error);
-      alert('Error saving settings. Please try again.');
+      console.error("Error saving general settings:", error);
+      toast({
+        title: "Error saving general settings",
+        description: error.message || "Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -72,7 +168,7 @@ export function GeneralSettings() {
     { value: "Europe/Paris", label: "Central European Time (CET)" },
     { value: "Asia/Tokyo", label: "Japan Standard Time (JST)" },
     { value: "Asia/Shanghai", label: "China Standard Time (CST)" },
-    { value: "Australia/Sydney", label: "Australian Eastern Time (AET)" }
+    { value: "Australia/Sydney", label: "Australian Eastern Time (AET)" },
   ];
 
   const languages = [
@@ -84,20 +180,20 @@ export function GeneralSettings() {
     { value: "pt", label: "Português" },
     { value: "ja", label: "日本語" },
     { value: "ko", label: "한국어" },
-    { value: "zh", label: "中文" }
+    { value: "zh", label: "中文" },
   ];
 
   const dateFormats = [
     { value: "MM/DD/YYYY", label: "MM/DD/YYYY (12/31/2024)" },
     { value: "DD/MM/YYYY", label: "DD/MM/YYYY (31/12/2024)" },
     { value: "YYYY-MM-DD", label: "YYYY-MM-DD (2024-12-31)" },
-    { value: "DD-MM-YYYY", label: "DD-MM-YYYY (31-12-2024)" }
+    { value: "DD-MM-YYYY", label: "DD-MM-YYYY (31-12-2024)" },
   ];
 
   const themes = [
     { value: "light", label: "Light", icon: "☀️" },
     { value: "dark", label: "Dark", icon: "🌙" },
-    { value: "system", label: "System", icon: "🔄" }
+    { value: "system", label: "System", icon: "🔄" },
   ];
 
   if (isLoading) {
@@ -131,11 +227,16 @@ export function GeneralSettings() {
             <Globe className="h-4 w-4" />
             Localization
           </h3>
-          
+
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Language</Label>
-              <Select value={settings.language} onValueChange={(value) => handleSettingChange('language', value)}>
+              <Select
+                value={settings.language}
+                onValueChange={(value) =>
+                  handleSettingChange("language", value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -151,7 +252,12 @@ export function GeneralSettings() {
 
             <div className="space-y-2">
               <Label>Timezone</Label>
-              <Select value={settings.timezone} onValueChange={(value) => handleSettingChange('timezone', value)}>
+              <Select
+                value={settings.timezone}
+                onValueChange={(value) =>
+                  handleSettingChange("timezone", value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -173,11 +279,16 @@ export function GeneralSettings() {
             <Clock className="h-4 w-4" />
             Date & Time
           </h3>
-          
+
           <div className="grid md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label>Date Format</Label>
-              <Select value={settings.dateFormat} onValueChange={(value) => handleSettingChange('dateFormat', value)}>
+              <Select
+                value={settings.dateFormat}
+                onValueChange={(value) =>
+                  handleSettingChange("dateFormat", value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -193,7 +304,12 @@ export function GeneralSettings() {
 
             <div className="space-y-2">
               <Label>Time Format</Label>
-              <Select value={settings.timeFormat} onValueChange={(value) => handleSettingChange('timeFormat', value)}>
+              <Select
+                value={settings.timeFormat}
+                onValueChange={(value) =>
+                  handleSettingChange("timeFormat", value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -206,7 +322,12 @@ export function GeneralSettings() {
 
             <div className="space-y-2">
               <Label>Week Starts On</Label>
-              <Select value={settings.weekStart} onValueChange={(value) => handleSettingChange('weekStart', value)}>
+              <Select
+                value={settings.weekStart}
+                onValueChange={(value) =>
+                  handleSettingChange("weekStart", value)
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -225,10 +346,13 @@ export function GeneralSettings() {
             <Palette className="h-4 w-4" />
             Appearance
           </h3>
-          
+
           <div className="space-y-2">
             <Label>Theme</Label>
-            <Select value={settings.theme} onValueChange={(value) => handleSettingChange('theme', value)}>
+            <Select
+              value={settings.theme}
+              onValueChange={(value) => handleSettingChange("theme", value)}
+            >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
@@ -241,7 +365,8 @@ export function GeneralSettings() {
               </SelectContent>
             </Select>
             <p className="text-sm text-muted-foreground">
-              Choose your preferred theme. System will follow your device settings.
+              Choose your preferred theme. System will follow your device
+              settings.
             </p>
           </div>
         </div>
@@ -277,9 +402,11 @@ export function GeneralSettings() {
                 Revisit and update your onboarding preferences and settings
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.href = '/onboarding?force-navigation=true'}
+            <Button
+              variant="outline"
+              onClick={() =>
+                (window.location.href = "/onboarding?force-navigation=true")
+              }
               className="flex items-center gap-2"
             >
               <UserCheck className="h-4 w-4" />
