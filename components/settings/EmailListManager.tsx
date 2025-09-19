@@ -945,7 +945,7 @@ export function EmailListManager() {
             filteredLists.map((list) => (
               <div
                 key={list._id}
-                className="border rounded-lg p-4 hover:bg-gray-50 transition-colors"
+                className="border rounded-lg p-4 transition-colors"
               >
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 w-full">
                   <div className="flex-1">
@@ -1231,7 +1231,7 @@ export function EmailListManager() {
                     (subscriber: Subscriber, index: number) => (
                       <div
                         key={index}
-                        className="p-4 flex items-center justify-between hover:bg-gray-50"
+                        className="p-4 flex items-center justify-between"
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -1286,7 +1286,7 @@ export function EmailListManager() {
 
             {/* Email List Details */}
             {selectedList && (
-              <div className="bg-gray-50 rounded-lg p-4">
+              <div className="rounded-lg p-4">
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-semibold text-lg">{selectedList.name}</h4>
                 </div>
@@ -1436,7 +1436,7 @@ export function EmailListManager() {
                     onChange={handleFileSelect}
                     className="w-full p-2 border border-gray-300 rounded-md"
                   />
-                  <div className="mt-2 p-3 bg-gray-50 rounded-lg border">
+                  <div className="mt-2 p-3 rounded-lg border">
                     <p className="text-xs font-medium text-gray-700 mb-2">
                       Required CSV Structure:
                     </p>
@@ -1584,15 +1584,15 @@ export function EmailListManager() {
       {/* Summary Stats */}
       <Card className="p-4 md:p-6">
         <h3 className="font-semibold mb-4">Summary</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="text-center p-4 rounded-lg border">
             <p className="text-2xl font-bold text-blue-600">
               {emailLists.length}
             </p>
             <p className="text-sm font-medium text-blue-800">Total Lists</p>
           </div>
 
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
+          <div className="text-center p-4 border rounded-lg">
             <p className="text-2xl font-bold text-purple-600">
               {emailLists
                 .reduce((total, list) => total + list.subscriberCount, 0)

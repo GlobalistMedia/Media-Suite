@@ -590,7 +590,6 @@ export default function DistributionPage() {
   ) => {
     setIsPublishing(true);
 
-
     try {
       // Always call handleGlocalistLivePublish first
       if (!isScheduled) {
@@ -841,7 +840,7 @@ export default function DistributionPage() {
                 </Select>
 
                 {selectedEmailList && (
-                  <div className="p-3 bg-gray-50 rounded-lg">
+                  <div className="p-3 rounded-lg">
                     {(() => {
                       const selectedList = emailLists.find(
                         (list) => list._id === selectedEmailList

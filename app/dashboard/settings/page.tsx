@@ -1,19 +1,19 @@
-"use client"
+"use client";
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { NotificationSettings } from '@/components/settings/NotificationSettings'
-import { PlatformIntegrations } from '@/components/settings/PlatformIntegrations'
-import { EmailListManager } from '@/components/settings/EmailListManager'
-import { PrivacySettings } from '@/components/settings/PrivacySettings'
-import { GeneralSettings } from '@/components/settings/GeneralSettings'
-import { 
-  Bell, 
-  Link, 
-  Mail, 
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { NotificationSettings } from "@/components/settings/NotificationSettings";
+import { PlatformIntegrations } from "@/components/settings/PlatformIntegrations";
+import { EmailListManager } from "@/components/settings/EmailListManager";
+import { PrivacySettings } from "@/components/settings/PrivacySettings";
+import { GeneralSettings } from "@/components/settings/GeneralSettings";
+import {
+  Bell,
+  Link,
+  Mail,
   Shield,
   Settings as SettingsIcon,
-  Globe
-} from 'lucide-react'
+  Globe,
+} from "lucide-react";
 
 export default function SettingsPage() {
   return (
@@ -32,11 +32,17 @@ export default function SettingsPage() {
 
       <Tabs defaultValue="notifications" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1">
-          <TabsTrigger value="notifications" className="flex items-center gap-2 py-2">
+          <TabsTrigger
+            value="notifications"
+            className="flex items-center gap-2 py-2"
+          >
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">Notifications</span>
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="flex items-center gap-2 py-2">
+          <TabsTrigger
+            value="integrations"
+            className="flex items-center gap-2 py-2"
+          >
             <Link className="h-4 w-4" />
             <span className="hidden sm:inline">Integrations</span>
           </TabsTrigger>
@@ -53,7 +59,7 @@ export default function SettingsPage() {
             <span className="hidden sm:inline">Privacy</span>
           </TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="notifications" className="space-y-6">
           <NotificationSettings />
         </TabsContent>
@@ -75,5 +81,5 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

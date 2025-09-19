@@ -185,7 +185,7 @@ export function AccountSettings() {
             <Button variant="outline">Enable 2FA</Button>
           </div>
 
-          <div className="flex items-center justify-between p-4 border rounded-lg">
+          {/* <div className="flex items-center justify-between p-4 border rounded-lg">
             <div>
               <h3 className="font-medium">Login Sessions</h3>
               <p className="text-sm text-muted-foreground">
@@ -193,7 +193,7 @@ export function AccountSettings() {
               </p>
             </div>
             <Button variant="outline">View Sessions</Button>
-          </div>
+          </div> */}
         </div>
       </Card>
     </div>
