@@ -18,12 +18,19 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import { validatePassword, validatePasswordMatch } from "@/lib/utils";
+import { ProfileData } from "@/hooks/useProfile";
 
 interface AccountSecurityProps {
   className?: string;
+  profileData?: ProfileData | null;
+  onPasswordChanged?: () => void;
 }
 
-export function AccountSecurity({ className }: AccountSecurityProps) {
+export function AccountSecurity({
+  className,
+  profileData,
+  onPasswordChanged,
+}: AccountSecurityProps) {
   const { toast } = useToast();
 
   // State variables
@@ -42,6 +49,28 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [qrCodeUrl, setQrCodeUrl] = useState("");
 
+  // Helper function to format time difference
+  const getTimeDifference = (date: Date) => {
+    const now = new Date();
+    const diffInMs = now.getTime() - date.getTime();
+    const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+    const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+    const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+    const diffInMonths = Math.floor(diffInDays / 30);
+    const diffInYears = Math.floor(diffInDays / 365);
+
+    if (diffInMinutes < 1) return "Just now";
+    if (diffInMinutes < 60)
+      return `${diffInMinutes} minute${diffInMinutes === 1 ? "" : "s"} ago`;
+    if (diffInHours < 24)
+      return `${diffInHours} hour${diffInHours === 1 ? "" : "s"} ago`;
+    if (diffInDays < 30)
+      return `${diffInDays} day${diffInDays === 1 ? "" : "s"} ago`;
+    if (diffInMonths < 12)
+      return `${diffInMonths} month${diffInMonths === 1 ? "" : "s"} ago`;
+    return `${diffInYears} year${diffInYears === 1 ? "" : "s"} ago`;
+  };
+
   // Handle password change
   const handleChangePassword = async () => {
     if (
@@ -57,7 +86,12 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
       return;
     }
 
-    if (!validatePasswordMatch(passwordForm.newPassword, passwordForm.confirmPassword)) {
+    if (
+      !validatePasswordMatch(
+        passwordForm.newPassword,
+        passwordForm.confirmPassword
+      )
+    ) {
       toast({
         title: "Password Mismatch",
         description: "New password and confirmation don't match.",
@@ -71,7 +105,9 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
     if (!passwordValidation.isValid) {
       toast({
         title: "Password Too Weak",
-        description: `Password must meet all requirements: ${passwordValidation.errors.join(", ")}`,
+        description: `Password must meet all requirements: ${passwordValidation.errors.join(
+          ", "
+        )}`,
         variant: "destructive",
       });
       return;
@@ -80,20 +116,20 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
     setIsChangingPassword(true);
 
     try {
-      const response = await fetch('/api/profile/update-password', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/profile/update-password", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,
           newPassword: passwordForm.newPassword,
-          confirmPassword: passwordForm.confirmPassword
-        })
+          confirmPassword: passwordForm.confirmPassword,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update password');
+        throw new Error(data.error || "Failed to update password");
       }
 
       // Reset form
@@ -104,6 +140,11 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
       });
       setShowPasswordDialog(false);
 
+      // Notify parent component to refresh profile data
+      if (onPasswordChanged) {
+        onPasswordChanged();
+      }
+
       toast({
         title: "Password Changed",
         description: "Your password has been updated successfully.",
@@ -111,7 +152,10 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
     } catch (error) {
       toast({
         title: "Password Change Failed",
-        description: error instanceof Error ? error.message : "Failed to change password. Please try again.",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to change password. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -309,7 +353,11 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
             <div>
               <p className="font-medium">Password</p>
               <p className="text-sm text-muted-foreground">
-                Last changed 3 months ago
+                {profileData?.passwordChangedAt
+                  ? `Last changed ${getTimeDifference(
+                      new Date(profileData.passwordChangedAt)
+                    )}`
+                  : "Password not changed recently"}
               </p>
             </div>
             <Button
@@ -355,7 +403,7 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
             </div>
           </div>
 
-          <div className="flex items-center justify-between p-3 border rounded-lg">
+          {/* <div className="flex items-center justify-between p-3 border rounded-lg">
             <div>
               <p className="font-medium">Login Sessions</p>
               <p className="text-sm text-muted-foreground">
@@ -370,7 +418,7 @@ export function AccountSecurity({ className }: AccountSecurityProps) {
             >
               View Sessions
             </Button>
-          </div>
+          </div> */}
         </div>
       </Card>
 

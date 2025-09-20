@@ -1,31 +1,26 @@
-export const dynamic = 'force-dynamic';
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import dbConnect from '@/lib/dbConnect';
-import User from '@/lib/models/User';
+export const dynamic = "force-dynamic";
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import dbConnect from "@/lib/dbConnect";
+import User from "@/lib/models/User";
 
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await dbConnect();
 
-    const user = await User.findOne({ email: session.user.email })
-      .select('-password -twoFactorSecret -sessions')
+    const user = await User.findOne({ email: session.user.email }).select(
+      "-password -twoFactorSecret -sessions"
+    );
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -34,23 +29,24 @@ export async function GET() {
         id: user._id,
         name: user.name,
         email: user.email,
-        bio: user.bio || '',
-        location: user.location || '',
-        phone: user.phone || '',
-        company: user.company || '',
-        website: user.website || '',
+        bio: user.bio || "",
+        location: user.location || "",
+        phone: user.phone || "",
+        company: user.company || "",
+        website: user.website || "",
         profilePicture: user.profilePicture,
         contentCreatedCount: user.contentCreatedCount,
         aiGenerationsCount: user.aiGenerationsCount,
         joinDate: user.createdAt,
         userSubscriptionLevel: user.userSubscriptionLevel,
         isOnboarded: user.isOnboarded,
-      }
+        passwordChangedAt: user.passwordChangedAt,
+      },
     });
   } catch (error) {
-    console.error('Profile GET error:', error);
+    console.error("Profile GET error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
@@ -59,12 +55,9 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -74,11 +67,11 @@ export async function PUT(request: NextRequest) {
 
     // Validate input
     const updateData: any = {};
-    
+
     if (name !== undefined) {
       if (!name.trim()) {
         return NextResponse.json(
-          { error: 'Name is required' },
+          { error: "Name is required" },
           { status: 400 }
         );
       }
@@ -88,7 +81,7 @@ export async function PUT(request: NextRequest) {
     if (bio !== undefined) {
       if (bio.length > 250) {
         return NextResponse.json(
-          { error: 'Bio cannot be more than 250 characters' },
+          { error: "Bio cannot be more than 250 characters" },
           { status: 400 }
         );
       }
@@ -106,7 +99,7 @@ export async function PUT(request: NextRequest) {
     if (company !== undefined) {
       if (company.length > 100) {
         return NextResponse.json(
-          { error: 'Company name cannot be more than 100 characters' },
+          { error: "Company name cannot be more than 100 characters" },
           { status: 400 }
         );
       }
@@ -120,18 +113,15 @@ export async function PUT(request: NextRequest) {
     const user = await User.findOneAndUpdate(
       { email: session.user.email },
       updateData,
-      { 
+      {
         new: true,
         runValidators: true,
-        select: '-password -passwordConfirm -twoFactorSecret -sessions'
+        select: "-password -passwordConfirm -twoFactorSecret -sessions",
       }
     );
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -140,46 +130,44 @@ export async function PUT(request: NextRequest) {
         id: user._id,
         name: user.name,
         email: user.email,
-        bio: user.bio || '',
-        location: user.location || '',
-        phone: user.phone || '',
-        company: user.company || '',
-        website: user.website || '',
+        bio: user.bio || "",
+        location: user.location || "",
+        phone: user.phone || "",
+        company: user.company || "",
+        website: user.website || "",
         profilePicture: user.profilePicture,
         contentCreatedCount: user.contentCreatedCount,
         aiGenerationsCount: user.aiGenerationsCount,
         joinDate: user.createdAt,
         userSubscriptionLevel: user.userSubscriptionLevel,
         isOnboarded: user.isOnboarded,
-      }
+        passwordChangedAt: user.passwordChangedAt,
+      },
     });
   } catch (error) {
-    console.error('Profile PUT error:', error);
-    
+    console.error("Profile PUT error:", error);
+
     // Handle validation errors
-    if (error instanceof Error && error.message.includes('validation failed')) {
+    if (error instanceof Error && error.message.includes("validation failed")) {
       return NextResponse.json(
-        { error: 'Validation failed. Please check your input.' },
+        { error: "Validation failed. Please check your input." },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
-} 
+}
 
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    
+
     if (!session?.user?.email) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     await dbConnect();
@@ -188,26 +176,22 @@ export async function DELETE(request: NextRequest) {
     const user = await User.findOneAndUpdate(
       { email: session.user.email },
       { isActive: false },
-      { new: true, select: '+isActive' }
+      { new: true, select: "+isActive" }
     );
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'User not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Account deleted successfully'
+      message: "Account deleted successfully",
     });
-
   } catch (error) {
-    console.error('Delete account error:', error);
+    console.error("Delete account error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
-} 
+}

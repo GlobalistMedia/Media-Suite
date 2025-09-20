@@ -67,6 +67,7 @@ export default function ProfilePage() {
     uploadProfilePicture,
     removeProfilePicture,
     deleteAccount,
+    refreshProfile,
   } = useProfile();
 
   const [editData, setEditData] = useState({
@@ -593,16 +594,22 @@ export default function ProfilePage() {
             <div className="space-y-3">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Content Created</span>
-                <span className="font-medium text-foreground">247</span>
+                <span className="font-medium text-foreground">
+                  {profileData?.contentCreatedCount || 0}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">AI Generations</span>
-                <span className="font-medium text-foreground">1,432</span>
+                <span className="font-medium text-foreground">
+                  {profileData?.aiGenerationsCount || 0}
+                </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Member Since</span>
                 <span className="font-medium text-foreground">
-                  {profileData.joinDate}
+                  {profileData?.joinDate
+                    ? new Date(profileData.joinDate).toLocaleDateString()
+                    : "N/A"}
                 </span>
               </div>
             </div>
@@ -813,7 +820,10 @@ export default function ProfilePage() {
           </Card>
 
           {/* Account Security Component */}
-          <AccountSecurity />
+          <AccountSecurity
+            profileData={profileData}
+            onPasswordChanged={refreshProfile}
+          />
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -65,7 +65,7 @@ export function CalendarView({
   >(null);
 
   const toggleDateExpansion = (dateString: string) => {
-    setExpandedDates(prev => {
+    setExpandedDates((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(dateString)) {
         newSet.delete(dateString);
@@ -79,9 +79,15 @@ export function CalendarView({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
-  // Add theme detection
+  // Add theme detection with hydration-safe approach
   const { theme, resolvedTheme } = useTheme();
-  const isDark = theme === "dark" || (theme === "system" && resolvedTheme === "dark");
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    setIsDark(
+      theme === "dark" || (theme === "system" && resolvedTheme === "dark")
+    );
+  }, [theme, resolvedTheme]);
 
   // Get current month/year
   const currentMonth = currentDate.getMonth();
@@ -317,86 +323,93 @@ export function CalendarView({
               </div>
 
               <div className="grid grid-cols-7 gap-1 sm:gap-2">
-                {getDaysInMonth(currentDate).map((day, index) => (
-                  <div
-                    key={index}
-                    className={`
-                      min-h-[60px] sm:min-h-[80px] lg:min-h-[100px] p-1 sm:p-2 border rounded-lg
-                      ${day 
-                        ? isDark 
-                          ? "bg-[#23272F] hover:bg-[#313846]" 
-                          : "bg-white hover:bg-gray-300"
-                        : isDark 
-                          ? "bg-[#1A1D23]" 
-                          : "bg-gray-100"}
-                      ${
-                        day && day.toDateString() === new Date().toDateString()
-                          ? "ring-2 ring-blue-500"
-                          : ""
-                      }
-                    `}
-                  >
-                    {day && (
-                      <>
-                        <div className="text-xs sm:text-sm font-medium mb-1">
-                          {day.getDate()}
-                        </div>
-                        <div className="space-y-1">
-                          {(() => {
-                            const items = getItemsForDate(day);
-                            const dateString = day.toDateString();
-                            const isExpanded = expandedDates.has(dateString);
-                            const itemsToShow = isExpanded ? items : items.slice(0, 2);
-                            
-                            return (
-                              <>
-                                {itemsToShow.map((item, itemIndex) => (
-                                  <div
-                                    key={itemIndex}
-                                    className={`
-                                    text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 group
-                                    ${
+                {getDaysInMonth(currentDate).map((day, index) => {
+                  const baseClasses =
+                    "min-h-[60px] sm:min-h-[80px] lg:min-h-[100px] p-1 sm:p-2 border rounded-lg";
+                  const backgroundClasses = day
+                    ? isDark
+                      ? "bg-[#23272F] hover:bg-[#313846]"
+                      : "bg-white hover:bg-gray-300"
+                    : isDark
+                    ? "bg-[#1A1D23]"
+                    : "bg-gray-100";
+                  const todayClasses =
+                    day && day.toDateString() === new Date().toDateString()
+                      ? "ring-2 ring-blue-500"
+                      : "";
+
+                  return (
+                    <div
+                      key={index}
+                      className={`${baseClasses} ${backgroundClasses} ${todayClasses}`}
+                    >
+                      {day && (
+                        <>
+                          <div className="text-xs sm:text-sm font-medium mb-1">
+                            {day.getDate()}
+                          </div>
+                          <div className="space-y-1">
+                            {(() => {
+                              const items = getItemsForDate(day);
+                              const dateString = day.toDateString();
+                              const isExpanded = expandedDates.has(dateString);
+                              const itemsToShow = isExpanded
+                                ? items
+                                : items.slice(0, 2);
+
+                              return (
+                                <>
+                                  {itemsToShow.map((item, itemIndex) => {
+                                    const itemBaseClasses =
+                                      "text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 group";
+                                    const itemColorClasses =
                                       "eventType" in item
-                                        ? isDark 
-                                          ? "bg-blue-900 text-blue-200" 
+                                        ? isDark
+                                          ? "bg-blue-900 text-blue-200"
                                           : "bg-blue-100 text-blue-800"
-                                        : isDark 
-                                          ? "bg-green-900 text-green-200" 
-                                          : "bg-green-100 text-green-800"
-                                    }
-                                  `}
-                                    onClick={() => handleEditItem(item)}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span className="truncate">
-                                        {"eventType" in item ? item.title : item.title}
-                                      </span>
-                                      <Edit className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                    </div>
-                                  </div>
-                                ))}
-                                {items.length > 2 && (
-                                  <button
-                                    className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-full text-left"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      toggleDateExpansion(dateString);
-                                    }}
-                                  >
-                                    {isExpanded 
-                                      ? `-${items.length - 2} less` 
-                                      : `+${items.length - 2} more`
-                                    }
-                                  </button>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                ))}
+                                        : isDark
+                                        ? "bg-green-900 text-green-200"
+                                        : "bg-green-100 text-green-800";
+
+                                    return (
+                                      <div
+                                        key={itemIndex}
+                                        className={`${itemBaseClasses} ${itemColorClasses}`}
+                                        onClick={() => handleEditItem(item)}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className="truncate">
+                                            {"eventType" in item
+                                              ? item.title
+                                              : item.title}
+                                          </span>
+                                          <Edit className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  {items.length > 2 && (
+                                    <button
+                                      className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer w-full text-left"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleDateExpansion(dateString);
+                                      }}
+                                    >
+                                      {isExpanded
+                                        ? `-${items.length - 2} less`
+                                        : `+${items.length - 2} more`}
+                                    </button>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -417,14 +430,11 @@ export function CalendarView({
                         </span>
                       </div>
                       <div
-                        className={`
-                          text-lg sm:text-xl font-bold mt-1
-                          ${
-                            day.toDateString() === new Date().toDateString()
-                              ? "text-blue-600"
-                              : ""
-                          }
-                        `}
+                        className={`text-lg sm:text-xl font-bold mt-1 ${
+                          day.toDateString() === new Date().toDateString()
+                            ? "text-blue-600"
+                            : ""
+                        }`}
                       >
                         {day.getDate()}
                       </div>
@@ -433,14 +443,11 @@ export function CalendarView({
                       {getItemsForDate(day).map((item, itemIndex) => (
                         <div
                           key={itemIndex}
-                          className={`
-                            text-xs p-2 rounded-lg border-l-4 cursor-pointer hover:opacity-80 group
-                            ${
-                              "eventType" in item
-                                ? "bg-blue-50 border-blue-400 text-blue-800"
-                                : "bg-green-50 border-green-400 text-green-800"
-                            }
-                          `}
+                          className={`text-xs p-2 rounded-lg border-l-4 cursor-pointer hover:opacity-80 group ${
+                            "eventType" in item
+                              ? "bg-blue-50 border-blue-400 text-blue-800"
+                              : "bg-green-50 border-green-400 text-green-800"
+                          }`}
                           onClick={() => handleEditItem(item)}
                         >
                           <div className="flex items-center justify-between">
@@ -470,62 +477,77 @@ export function CalendarView({
               <div className="space-y-4">
                 {[...events, ...scheduledPosts]
                   .sort((a, b) => {
-                    const dateA = "eventType" in a ? a.startDateTime : a.scheduledDate;
-                    const dateB = "eventType" in b ? b.startDateTime : b.scheduledDate;
+                    const dateA =
+                      "eventType" in a ? a.startDateTime : a.scheduledDate;
+                    const dateB =
+                      "eventType" in b ? b.startDateTime : b.scheduledDate;
                     return dateA.getTime() - dateB.getTime();
                   })
                   .map((item, index) => (
                     <div
                       key={index}
-                      className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg hover:bg-gray-50"
+                      className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 dark:border-gray-700"
                     >
                       <div className="flex-shrink-0">
                         <div
-                          className={`
-                            p-2 rounded-full
-                            ${"eventType" in item ? "bg-blue-100" : "bg-green-100"}
-                          `}
+                          className={`p-2 rounded-full ${
+                            "eventType" in item
+                              ? "bg-blue-100 dark:bg-blue-900"
+                              : "bg-green-100 dark:bg-green-900"
+                          }`}
                         >
                           {"eventType" in item ? (
                             item.eventType === "meeting" ? (
-                              <Users className="h-4 w-4 text-blue-600" />
+                              <Users className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                             ) : (
-                              <Calendar className="h-4 w-4 text-blue-600" />
+                              <Calendar className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                             )
                           ) : (
-                            <Clock className="h-4 w-4 text-green-600" />
+                            <Clock className="h-4 w-4 text-green-600 dark:text-green-400" />
                           )}
                         </div>
                       </div>
 
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">
+                        <h3 className="font-semibold truncate dark:text-gray-100">
                           {"eventType" in item ? item.title : item.title}
                         </h3>
-                        <p className="text-sm text-muted-foreground truncate">
+                        <p className="text-sm text-muted-foreground truncate dark:text-gray-300">
                           {"eventType" in item
                             ? item.description
                             : `Scheduled for ${item.platforms.length} platforms`}
                         </p>
                         <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <Badge variant="outline" className="text-xs">
+                          <Badge
+                            variant="outline"
+                            className="text-xs dark:border-gray-600 dark:text-gray-300"
+                          >
                             {("eventType" in item
                               ? item.startDateTime
                               : item.scheduledDate
                             ).toLocaleDateString()}
                           </Badge>
                           {"eventType" in item && item.duration && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant="outline"
+                              className="text-xs dark:border-gray-600 dark:text-gray-300"
+                            >
                               {item.duration} min
                             </Badge>
                           )}
                           {"eventType" in item && item.attendees && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant="outline"
+                              className="text-xs dark:border-gray-600 dark:text-gray-300"
+                            >
                               {item.attendees} attendees
                             </Badge>
                           )}
                           {!("eventType" in item) && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant="outline"
+                              className="text-xs dark:border-gray-600 dark:text-gray-300"
+                            >
                               {item.status}
                             </Badge>
                           )}
@@ -604,7 +626,8 @@ export function CalendarView({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Event?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this event? This action cannot be undone.
+              Are you sure you want to delete this event? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

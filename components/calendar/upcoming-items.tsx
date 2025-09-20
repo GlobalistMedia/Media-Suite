@@ -49,19 +49,26 @@ export function UpcomingItems({
   nextWeek.setDate(now.getDate() + 7);
 
   const upcomingEvents = events
-    .filter((event) => event.startDateTime >= now && event.startDateTime <= nextWeek)
+    .filter(
+      (event) => event.startDateTime >= now && event.startDateTime <= nextWeek
+    )
     .sort((a, b) => a.startDateTime.getTime() - b.startDateTime.getTime());
 
   const upcomingPosts = scheduledPosts
-    .filter((post) => post.scheduledDate >= now && post.scheduledDate <= nextWeek)
+    .filter(
+      (post) => post.scheduledDate >= now && post.scheduledDate <= nextWeek
+    )
     .sort((a, b) => a.scheduledDate.getTime() - b.scheduledDate.getTime());
 
   const allUpcomingItems = [
-    ...upcomingEvents.map(event => ({ ...event, itemType: 'event' as const })),
-    ...upcomingPosts.map(post => ({ ...post, itemType: 'post' as const }))
+    ...upcomingEvents.map((event) => ({
+      ...event,
+      itemType: "event" as const,
+    })),
+    ...upcomingPosts.map((post) => ({ ...post, itemType: "post" as const })),
   ].sort((a, b) => {
-    const dateA = a.itemType === 'event' ? a.startDateTime : a.scheduledDate;
-    const dateB = b.itemType === 'event' ? b.startDateTime : b.scheduledDate;
+    const dateA = a.itemType === "event" ? a.startDateTime : a.scheduledDate;
+    const dateB = b.itemType === "event" ? b.startDateTime : b.scheduledDate;
     return dateA.getTime() - dateB.getTime();
   });
 
@@ -107,14 +114,15 @@ export function UpcomingItems({
                   <div
                     className={`
                       p-2 rounded-full
-                      ${item.itemType === 'event' 
-                        ? 'bg-blue-100' 
-                        : 'bg-green-100'
+                      ${
+                        item.itemType === "event"
+                          ? "bg-blue-100"
+                          : "bg-green-100"
                       }
                     `}
                   >
-                    {item.itemType === 'event' ? (
-                      'type' in item && item.type === 'meeting' ? (
+                    {item.itemType === "event" ? (
+                      "type" in item && item.type === "meeting" ? (
                         <Users className="h-4 w-4 text-blue-600" />
                       ) : (
                         <Calendar className="h-4 w-4 text-blue-600" />
@@ -132,44 +140,61 @@ export function UpcomingItems({
                       <h3 className="font-semibold text-sm sm:text-base truncate">
                         {item.title}
                       </h3>
-                      
+
                       <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
-                        {item.itemType === 'event' 
-                          ? ('description' in item ? item.description : '')
-                          : `Scheduled for ${item.platforms.length} platform${item.platforms.length !== 1 ? 's' : ''}`
-                        }
+                        {item.itemType === "event"
+                          ? "description" in item
+                            ? item.description
+                            : ""
+                          : `Scheduled for ${item.platforms.length} platform${
+                              item.platforms.length !== 1 ? "s" : ""
+                            }`}
                       </p>
 
                       {/* Date and Time */}
                       <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2">
                         <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                           <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
-                          {(item.itemType === 'event' ? item.startDateTime : item.scheduledDate).toLocaleDateString()}
+                          {(item.itemType === "event"
+                            ? item.startDateTime
+                            : item.scheduledDate
+                          ).toLocaleDateString()}
                         </div>
-                        
+
                         <div className="flex items-center gap-1 text-xs sm:text-sm text-muted-foreground">
                           <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
-                          {(item.itemType === 'event' ? item.startDateTime : item.scheduledDate).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit'
+                          {(item.itemType === "event"
+                            ? item.startDateTime
+                            : item.scheduledDate
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
                           })}
                         </div>
 
-                        {item.itemType === 'event' && 'duration' in item && item.duration && (
-                          <Badge variant="outline" className="text-xs">
-                            {item.duration} min
-                          </Badge>
-                        )}
+                        {item.itemType === "event" &&
+                          "duration" in item &&
+                          item.duration && (
+                            <Badge variant="outline" className="text-xs">
+                              {item.duration} min
+                            </Badge>
+                          )}
 
-                        {item.itemType === 'event' && 'attendees' in item && item.attendees && (
-                          <Badge variant="outline" className="text-xs">
-                            {item.attendees} attendees
-                          </Badge>
-                        )}
+                        {item.itemType === "event" &&
+                          "attendees" in item &&
+                          item.attendees && (
+                            <Badge variant="outline" className="text-xs">
+                              {item.attendees} attendees
+                            </Badge>
+                          )}
 
-                        {item.itemType === 'post' && (
-                          <Badge 
-                            variant={item.status === 'scheduled' ? 'default' : 'secondary'}
+                        {item.itemType === "post" && (
+                          <Badge
+                            variant={
+                              item.status === "scheduled"
+                                ? "default"
+                                : "secondary"
+                            }
                             className="text-xs"
                           >
                             {item.status}
@@ -184,7 +209,7 @@ export function UpcomingItems({
                         variant="outline"
                         size="sm"
                         onClick={() => {
-                          if (item.itemType === 'event') {
+                          if (item.itemType === "event") {
                             onEditEvent(item as Event);
                           } else {
                             onEditPost(item as ScheduledPost);
@@ -195,7 +220,7 @@ export function UpcomingItems({
                         <Edit className="h-3 w-3 sm:h-4 sm:w-4" />
                         <span className="hidden sm:inline ml-1">Edit</span>
                       </Button>
-                      {item.itemType === 'event' && (
+                      {item.itemType === "event" && (
                         <>
                           <Button
                             variant="outline"
@@ -207,7 +232,9 @@ export function UpcomingItems({
                             }}
                           >
                             <Trash2 className="h-3 w-3 sm:h-4 sm:w-4" />
-                            <span className="hidden sm:inline ml-1">Delete</span>
+                            <span className="hidden sm:inline ml-1">
+                              Delete
+                            </span>
                           </Button>
                         </>
                       )}
@@ -235,7 +262,8 @@ export function UpcomingItems({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Event?</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this event? This action cannot be undone.
+              Are you sure you want to delete this event? This action cannot be
+              undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

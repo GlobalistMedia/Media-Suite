@@ -186,8 +186,8 @@ export function EditPostDialog({
                       p-3 rounded-lg border-2 transition-all duration-200 flex items-center gap-2
                       ${
                         isSelected
-                          ? "border-blue-500 bg-blue-50 text-blue-700"
-                          : "border-gray-200 hover:border-gray-300 bg-white"
+                          ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-400"
+                          : "border-gray-200 hover:border-gray-300 bg-white dark:bg-gray-800 dark:border-gray-600 dark:hover:border-gray-500 dark:text-gray-100"
                       }
                     `}
                   >
@@ -200,7 +200,7 @@ export function EditPostDialog({
               })}
             </div>
             {formData.platforms.length === 0 && (
-              <p className="text-xs text-red-500">
+              <p className="text-xs text-red-500 dark:text-red-400">
                 Please select at least one platform
               </p>
             )}
@@ -264,14 +264,14 @@ export function EditPostDialog({
           {/* Post Preview */}
           <div className="space-y-2">
             <Label className="text-sm font-medium">Preview</Label>
-            <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-800 dark:border-gray-600">
               <div className="flex items-center gap-2 mb-2">
                 <FileText className="h-4 w-4 text-muted-foreground" />
-                <span className="font-medium text-sm">
+                <span className="font-medium text-sm dark:text-gray-100">
                   {formData.title || "Untitled Post"}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground mb-3 line-clamp-3">
+              <p className="text-sm text-muted-foreground mb-3 line-clamp-3 dark:text-gray-300">
                 {formData.content || "No content"}
               </p>
               <div className="flex flex-wrap gap-1">
@@ -281,7 +281,7 @@ export function EditPostDialog({
                     <Badge
                       key={platformId}
                       variant="outline"
-                      className="text-xs"
+                      className="text-xs dark:border-gray-500 dark:text-gray-300"
                     >
                       {platform.name}
                     </Badge>
