@@ -40,14 +40,18 @@ interface EmailList {
   subscriberCount: number;
 }
 
+interface platformCreds {
+  facebook?: string;
+  youtube?: string;
+}
 // Platform mapping utility
 const platformMapping: Record<number, string> = {
   1: "Twitter", // Twitter
   2: "LinkedIn", // LinkedIn
   3: "Instagram", // Instagram
   4: "YouTube", // YouTube
-  5: "TikTok", // TikTok
-  6: "Facebook", // Facebook
+  // 5: "TikTok", // TikTok
+  5: "Facebook", // Facebook
 };
 
 export default function DistributionPage() {
@@ -65,6 +69,7 @@ export default function DistributionPage() {
   const [showPublishingHub, setShowPublishingHub] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [socialCreds, setSocialCreds] = useState<platformCreds>();
 
   // Email list state
   const [emailLists, setEmailLists] = useState<EmailList[]>([]);
@@ -139,6 +144,32 @@ export default function DistributionPage() {
       }
     }
   }, [status, loadPost]);
+
+  // fetch creator social tokens
+  const fetchSocialCreds = async () => {
+    try {
+      const currentResponse = await axios.get("/api/settings");
+      const currentSettings = currentResponse.data.data;
+      const facebookCreds = currentSettings.platformIntegrations.find(
+        (item: any) => item.platformId === "facebook"
+      ).accessToken;
+      const youtubeCreds = currentSettings.platformIntegrations.find(
+        (item: any) => item.platformId === "youtube"
+      ).accessToken;
+
+      setSocialCreds((prevData) => ({
+        ...prevData,
+        facebook: facebookCreds,
+        youtube: youtubeCreds,
+      }));
+    } catch (error: any) {
+      console.error("Error in Social cred fetching", error.message);
+    }
+  };
+
+  useEffect(() => {
+    fetchSocialCreds();
+  }, []);
 
   // Load email lists from settings
   useEffect(() => {
@@ -451,7 +482,7 @@ export default function DistributionPage() {
     setShowPublishingHub(true);
   };
 
-  const handleGlocalistLivePublish = async () => {
+  const handleGlobalistLivePublish = async () => {
     // Create HTML content for all blocks
     const htmlContent = blocks
       .map((block) => convertBlockToHTML(block))
@@ -593,7 +624,9 @@ export default function DistributionPage() {
     try {
       // Always call handleGlocalistLivePublish first
       if (!isScheduled) {
-        await handleGlocalistLivePublish();
+
+        await handleGlobalistLivePublish();
+
       }
 
       // Always save the post when scheduling or publishing
@@ -616,6 +649,7 @@ export default function DistributionPage() {
           }),
         ...(currentPostId && { postId: currentPostId }),
       };
+
 
       // Call the save API
       const response = await fetch("/api/content/save", {
@@ -643,6 +677,21 @@ export default function DistributionPage() {
       const platformNames = selectedPlatforms
         .map((id) => platformMapping[id])
         .join(", ");
+
+      if (platformNames.includes("YouTube")) {
+        await uploadToYouTube(blocks);
+      }
+
+      if (platformNames.includes("Linkedin")) {
+        await uploadToLinkedIn(blocks);
+      }
+
+      if (platformNames.includes("Facebook")) {
+        const message = "Hello, this is a test post from my app!";
+        const accessToken = socialCreds?.facebook as string;
+        await postToFacebook(accessToken, message);
+      }
+
 
       let description = "";
       if (isScheduled && scheduledDate) {
@@ -683,7 +732,7 @@ export default function DistributionPage() {
           setTimeout(async () => {
             try {
               // Re-publish to Globalist.live at scheduled time
-              await handleGlocalistLivePublish();
+              await handleGlobalistLivePublish();
 
               toast({
                 title: "Scheduled Article Published",
@@ -725,6 +774,393 @@ export default function DistributionPage() {
       });
     } finally {
       setIsPublishing(false);
+    }
+  };
+
+  // Handle Facebook post
+  const postToFacebook = async (accessToken: string, message: string) => {
+    // Step 1: Check if the user has the required permissions to post
+    // const permissionsGranted = await checkPermissionsForPosting(accessToken);
+
+    // if (!permissionsGranted) {
+    //   console.log("Posting permission not granted. Requesting again.");
+
+    //   // Step 2: Request permissions for posting
+    //   const permissionsUrl = `https://www.facebook.com/v12.0/dialog/oauth?client_id=${process.env.FB_CLIENT_ID}&redirect_uri=${process.env.FB_REDIRECT_URI}&scope=publish_pages,publish_to_groups`;
+    //   window.location.href = permissionsUrl;
+    //   return;
+    // }
+
+    const url = `https://graph.facebook.com/v12.0/me/feed`; // Facebook API endpoint to post on user's timeline
+
+    try {
+      // Step 2: Post to Facebook using the Graph API
+      const response = await axios.post(url, {
+        message: message, // The message to post
+        access_token: accessToken, // The access token received from Firebase
+      });
+
+      // Step 3: Handle the response from the Facebook API
+      if (response.data && response.data.id) {
+        console.log("Post successful! Post ID:", response.data.id);
+        alert("Post successfully created on Facebook!");
+      } else {
+        console.error("Error posting on Facebook:", response.data);
+        alert("Failed to post on Facebook.");
+      }
+    } catch (error) {
+      console.error("Error posting to Facebook:", error);
+      alert("Error occurred while posting to Facebook.");
+    }
+  };
+
+  // Check if the required permissions (e.g., publish_to_groups, publish_pages) are granted
+  const checkPermissionsForPosting = async (accessToken: string) => {
+    try {
+      const response = await axios.get(
+        `https://graph.facebook.com/me/permissions?access_token=${accessToken}`
+      );
+
+      // Step 4: Check if the correct posting permissions are granted
+      const permissions = response.data.data;
+      const hasPostingPermission = permissions.some(
+        (permission: any) =>
+          (permission.permission === "publish_pages" ||
+            permission.permission === "publish_to_groups") &&
+          permission.status === "granted"
+      );
+
+      return hasPostingPermission;
+    } catch (error: any) {
+      console.error("Error checking Facebook permissions:", error.message);
+      return false;
+    }
+  };
+
+  // Handle Youtube Post
+  const uploadToYouTube = async (blocks: any[]) => {
+    try {
+      // Check if there's a video block in the data
+      const videoBlock = blocks.find((block) => block.type === "video");
+      if (!videoBlock) {
+        console.error("No video block found");
+        return;
+      }
+
+      const videoUrl = videoBlock.content.url;
+      const videoBlob = await fetch(videoUrl).then((res) => res.blob());
+
+      // Prepare the video file for upload
+      const videoFile = new File([videoBlob], "video.mp4", {
+        type: "video/mp4",
+      });
+
+      // OAuth token with the required permissions (youtube.upload scope)
+
+      // Prepare the metadata and status of the video
+      const metadata = {
+        snippet: {
+          title: "videoTitle",
+          description: "videoDescription",
+          authToken: socialCreds?.youtube,
+          tags: ["tutorial", "blog", "YouTube", "content"],
+        },
+        status: {
+          privacyStatus: "public", // "private", "unlisted", or "public"
+        },
+      };
+
+      // YouTube API URL for direct upload (not resumable)
+      const uploadUrl = "/api/upload-youtube";
+
+      const formData = new FormData();
+      formData.append("file", videoFile);
+      formData.append("snippet", JSON.stringify(metadata.snippet));
+      formData.append("status", JSON.stringify(metadata.status));
+
+      // Make the API request to upload the video
+      const uploadResponse = await fetch("/api/upload-youtube", {
+        method: "POST",
+        body: formData,
+      });
+
+      const uploadData = await uploadResponse.json();
+
+      if (uploadResponse.ok) {
+        console.log("Video uploaded successfully", uploadData);
+        // Show success toast
+        toast({
+          title: "YouTube Upload",
+          description: "Your video has been successfully uploaded to YouTube.",
+        });
+      } else {
+        throw new Error(uploadData.error?.message || "YouTube upload failed.");
+      }
+    } catch (error) {
+      console.error("Error uploading video to YouTube:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to upload video to YouTube.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle linkedin post
+  const uploadToLinkedIn = async (blocks: any[]) => {
+    try {
+      // Check for content type (video, image, text)
+      const videoBlock = blocks.find((block) => block.type === "video");
+      const imageBlock = blocks.find((block) => block.type === "image");
+      const textBlock = blocks.find((block) => block.type === "text");
+
+      // LinkedIn OAuth token
+      const authToken = "YOUR_LINKEDIN_OAUTH_TOKEN"; // Replace with actual OAuth token
+      const userId = "YOUR_USER_ID"; // Replace with your LinkedIn User ID
+
+      // Step 1: Create Text Post (if available)
+      if (textBlock) {
+        const postRequest = {
+          author: `urn:li:person:${userId}`,
+          lifecycleState: "PUBLISHED",
+          specificContent: {
+            "com.linkedin.ugc.ShareContent": {
+              shareCommentary: {
+                text: textBlock.content,
+              },
+              shareMediaCategory: "NONE",
+            },
+          },
+          visibility: {
+            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+          },
+        };
+
+        const postResponse = await fetch(
+          "https://api.linkedin.com/v2/ugcPosts",
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(postRequest),
+          }
+        );
+
+        const postData = await postResponse.json();
+        if (!postResponse.ok) {
+          throw new Error(postData.message || "Text post creation failed.");
+        }
+        console.log("Text post created successfully", postData);
+      }
+
+      // Step 2: Upload Image (if available)
+      if (imageBlock) {
+        const imageUrl = imageBlock.content.url;
+        const imageBlob = await fetch(imageUrl).then((res) => res.blob());
+        const imageFile = new File([imageBlob], "image.jpg", {
+          type: "image/jpeg",
+        });
+
+        // Step 1: Register Image Upload URL
+        const uploadUrl =
+          "https://api.linkedin.com/v2/assets?action=registerUpload";
+        const uploadRequest = {
+          registerUploadRequest: {
+            owner: `urn:li:person:${userId}`,
+            mediaType: "IMAGE",
+            fileSize: imageFile.size,
+            fileName: "image.jpg",
+          },
+        };
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(uploadRequest),
+        });
+
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(
+            uploadData.message || "Failed to register image upload."
+          );
+        }
+
+        const imageUploadUrl = uploadData.value.uploadUrl;
+
+        // Step 2: Upload Image File
+        const imageUploadFileResponse = await fetch(imageUploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "image/jpeg",
+          },
+          body: imageBlob,
+        });
+
+        if (!imageUploadFileResponse.ok) {
+          throw new Error("Failed to upload the image file.");
+        }
+
+        // Step 3: Create Image Post
+        const createImagePostUrl = "https://api.linkedin.com/v2/ugcPosts";
+        const imagePostRequest = {
+          author: `urn:li:person:${userId}`,
+          lifecycleState: "PUBLISHED",
+          specificContent: {
+            "com.linkedin.ugc.ShareContent": {
+              shareCommentary: {
+                text: "Check out this image!", // Customize the post text
+              },
+              shareMediaCategory: "IMAGE",
+              media: [
+                {
+                  status: "READY",
+                  media: {
+                    mediaType: "IMAGE",
+                    originalUrl: uploadData.value.asset,
+                  },
+                },
+              ],
+            },
+          },
+          visibility: {
+            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+          },
+        };
+
+        const createImagePostResponse = await fetch(createImagePostUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(imagePostRequest),
+        });
+
+        const createImagePostData = await createImagePostResponse.json();
+        if (createImagePostResponse.ok) {
+          console.log("Image post created successfully", createImagePostData);
+        } else {
+          throw new Error(
+            createImagePostData.message || "Image post creation failed."
+          );
+        }
+      }
+
+      // Step 3: Upload Video (if available)
+      if (videoBlock) {
+        const videoUrl = videoBlock.content.url;
+        const videoBlob = await fetch(videoUrl).then((res) => res.blob());
+        const videoFile = new File([videoBlob], "video.mp4", {
+          type: "video/mp4",
+        });
+
+        // Step 1: Register Video Upload URL
+        const uploadUrl =
+          "https://api.linkedin.com/v2/assets?action=registerUpload";
+        const uploadRequest = {
+          registerUploadRequest: {
+            owner: `urn:li:person:${userId}`,
+            mediaType: "VIDEO",
+            fileSize: videoFile.size,
+            fileName: "video.mp4",
+          },
+        };
+
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(uploadRequest),
+        });
+
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+          throw new Error(
+            uploadData.message || "Failed to register video upload."
+          );
+        }
+
+        const videoUploadUrl = uploadData.value.uploadUrl;
+
+        // Step 2: Upload Video File
+        const videoUploadFileResponse = await fetch(videoUploadUrl, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "video/mp4",
+          },
+          body: videoBlob,
+        });
+
+        if (!videoUploadFileResponse.ok) {
+          throw new Error("Failed to upload the video file.");
+        }
+
+        // Step 3: Create Video Post
+        const createVideoPostUrl = "https://api.linkedin.com/v2/ugcPosts";
+        const videoPostRequest = {
+          author: `urn:li:person:${userId}`,
+          lifecycleState: "PUBLISHED",
+          specificContent: {
+            "com.linkedin.ugc.ShareContent": {
+              shareCommentary: {
+                text: "Check out this amazing video!", // Customize the post text
+              },
+              shareMediaCategory: "VIDEO",
+              media: [
+                {
+                  status: "READY",
+                  media: {
+                    mediaType: "VIDEO",
+                    originalUrl: uploadData.value.asset,
+                  },
+                },
+              ],
+            },
+          },
+          visibility: {
+            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
+          },
+        };
+
+        const createVideoPostResponse = await fetch(createVideoPostUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(videoPostRequest),
+        });
+
+        const createVideoPostData = await createVideoPostResponse.json();
+        if (createVideoPostResponse.ok) {
+          console.log("Video post created successfully", createVideoPostData);
+        } else {
+          throw new Error(
+            createVideoPostData.message || "Video post creation failed."
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Error uploading to LinkedIn:", error);
+      toast({
+        title: "Error",
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to upload content to LinkedIn.",
+        variant: "destructive",
+      });
     }
   };
 

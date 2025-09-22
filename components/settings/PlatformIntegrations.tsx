@@ -63,12 +63,12 @@ export function PlatformIntegrations() {
       icon: Youtube,
       description: "Connect your YouTube channel to manage video content",
     },
-    // {
-    //   platformId: "facebook",
-    //   name: "Facebook",
-    //   icon: Facebook,
-    //   description: "Connect your Facebook page to manage posts and engagement",
-    // },
+    {
+      platformId: "facebook",
+      name: "Facebook",
+      icon: Facebook,
+      description: "Connect your Facebook page to manage posts and engagement",
+    },
     {
       platformId: "wordpress",
       name: "WordPress",
@@ -208,6 +208,10 @@ export function PlatformIntegrations() {
           alert("Failed to save connection to database. Please try again.");
         }
 
+        // if (platformId === "facebook") {
+        //   const permissionsUrl = `https://www.facebook.com/v12.0/dialog/oauth?client_id=${process.env.NEXT_PUBLIC_FACEBOOK_CLIENT_ID}&redirect_uri=${process.env.NEXT_PUBLIC_FACEBOOK_REDIRECT_URI}&scope=business_management`;
+        //   window.location.href = permissionsUrl;
+        // }
         // Redirect to the profile page after successful linking
         router.push("/dashboard/settings");
       } catch (error: any) {

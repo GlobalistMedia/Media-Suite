@@ -39,8 +39,8 @@ const platformMap = {
   2: "LinkedIn",
   3: "Instagram",
   4: "YouTube",
-  5: "TikTok",
-  6: "Facebook",
+  // 5: "TikTok",
+  5: "Facebook",
 };
 
 export function PublishingHubModal({
@@ -439,13 +439,13 @@ export function PublishingHubModal({
                     </Card>
 
                     {/* Platform-specific Media Upload */}
-                    <PlatformMediaUpload
+                    {/* <PlatformMediaUpload
                       platform={platform}
                       onMediaUpload={(files) =>
                         handlePlatformMediaUpload(platform, files)
                       }
                       uploadedFiles={platformMedia[platform] || []}
-                    />
+                    /> */}
                   </TabsContent>
                 ))}
               </Tabs>
