@@ -10,40 +10,40 @@ interface ActionButtonBlockProps {
   showRemoveButtons?: boolean;
 }
 
-export function ActionButtonBlock({ 
-  buttons, 
-  onRemoveButton, 
-  showRemoveButtons = false 
+export function ActionButtonBlock({
+  buttons,
+  onRemoveButton,
+  showRemoveButtons = false,
 }: ActionButtonBlockProps) {
-  const getButtonIcon = (type: ActionButton['type']) => {
+  const getButtonIcon = (type: ActionButton["type"]) => {
     switch (type) {
-      case 'email_subscribe':
+      case "email_subscribe":
         return <Mail className="h-4 w-4" />;
-      case 'donation':
+      case "donation":
         return <Heart className="h-4 w-4" />;
-      case 'tip_jar':
+      case "tip_jar":
         return <Coffee className="h-4 w-4" />;
       default:
         return <DollarSign className="h-4 w-4" />;
     }
   };
 
-  const getButtonColor = (type: ActionButton['type']) => {
+  const getButtonColor = (type: ActionButton["type"]) => {
     switch (type) {
-      case 'email_subscribe':
-        return 'bg-blue-600 hover:bg-blue-700 text-white';
-      case 'donation':
-        return 'bg-red-600 hover:bg-red-700 text-white';
-      case 'tip_jar':
-        return 'bg-yellow-600 hover:bg-yellow-700 text-white';
+      case "email_subscribe":
+        return "bg-blue-600 hover:bg-blue-700 text-white";
+      case "donation":
+        return "bg-red-600 hover:bg-red-700 text-white";
+      case "tip_jar":
+        return "bg-yellow-600 hover:bg-yellow-700 text-white";
       default:
-        return 'bg-gray-600 hover:bg-gray-700 text-white';
+        return "bg-gray-600 hover:bg-gray-700 text-white";
     }
   };
 
   const handleButtonClick = (button: ActionButton) => {
     if (button.config.url) {
-      window.open(button.config.url, '_blank');
+      window.open(button.config.url, "_blank");
     }
   };
 
@@ -63,7 +63,7 @@ export function ActionButtonBlock({
             <span className="ml-2">{button.label}</span>
             <ExternalLink className="h-3 w-3 ml-2" />
           </Button>
-          
+
           {/* Remove button for individual action buttons */}
           {showRemoveButtons && onRemoveButton && (
             <Button

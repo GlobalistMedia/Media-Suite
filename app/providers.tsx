@@ -1,5 +1,5 @@
 // This is the most important line! It marks this file as a Client Component.
-'use client'; 
+"use client";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { SessionProvider } from "next-auth/react";
@@ -21,7 +21,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       >
         {/* Your app's content will go here */}
         {children}
-        
+
         {/* These components are part of the theme/UI, so they stay inside it */}
         <Toaster />
         <CustomSonner />

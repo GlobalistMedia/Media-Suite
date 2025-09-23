@@ -10,7 +10,7 @@ import { PublishingHubModal } from "@/components/PublishingHubModal";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlatformSelector } from "@/components/platform-selector";
 import { Sparkles } from "lucide-react";
-import type { AnyBlock } from "@/types/editor";
+import type { AnyBlock, ActionButton } from "@/types/editor";
 import {
   Select,
   SelectContent,
@@ -19,26 +19,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import axios from "axios";
-
-// Email list interfaces (matching EmailListManager)
-interface Subscriber {
-  id: string;
-  email: string;
-  name?: string;
-  subscribedAt: Date;
-  unsubscribedAt?: Date;
-  source?: string;
-}
-
-interface EmailList {
-  _id: string;
-  name: string;
-  description: string;
-  tags: string[];
-  createdAt: Date;
-  subscribers: Subscriber[];
-  subscriberCount: number;
-}
 
 // Platform mapping utility
 const platformMapping: Record<number, string> = {
@@ -65,11 +45,7 @@ export default function DistributionPage() {
   const [showPublishingHub, setShowPublishingHub] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-
-  // Email list state
-  const [emailLists, setEmailLists] = useState<EmailList[]>([]);
-  const [isLoadingEmailLists, setIsLoadingEmailLists] = useState(true);
-  const [selectedEmailList, setSelectedEmailList] = useState<string>("");
+  const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -139,37 +115,6 @@ export default function DistributionPage() {
       }
     }
   }, [status, loadPost]);
-
-  // Load email lists from settings
-  useEffect(() => {
-    if (status === "authenticated") {
-      loadEmailLists();
-    }
-  }, [status]);
-
-  // Function to load email lists (similar to EmailListManager)
-  const loadEmailLists = async () => {
-    try {
-      setIsLoadingEmailLists(true);
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=${session?.user?.email}&page=1&limit=10000`
-      );
-      console.log("response", response.data);
-      if (response.data.status === 200 && response.data.response.emails) {
-        const emailLists = response.data.response.emails;
-
-        // Load email lists
-        if (emailLists) {
-          setEmailLists(emailLists);
-          console.log("Email lists loaded:", emailLists);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading email lists:", error);
-    } finally {
-      setIsLoadingEmailLists(false);
-    }
-  };
 
   // Helper function to convert block to HTML content
   const convertBlockToHTML = (block: any) => {
@@ -294,6 +239,26 @@ export default function DistributionPage() {
         ? prev.filter((id) => id !== platformId)
         : [...prev, platformId]
     );
+  };
+
+  // Helper function to extract email list information from action buttons
+  const getEmailListFromActionButtons = () => {
+    const emailSubscribeButton = actionButtons.find(
+      (button) => button.type === "email_subscribe" && button.config.emailListId
+    );
+
+    // Validate emailListId exists and is not empty
+    if (
+      emailSubscribeButton?.config.emailListId &&
+      emailSubscribeButton.config.emailListId.trim() !== "" &&
+      emailSubscribeButton.config.emailListId !== "none"
+    ) {
+      return {
+        emailListId: emailSubscribeButton.config.emailListId,
+      };
+    }
+
+    return null;
   };
 
   const handleSave = async (editorTitle: string, editorBlocks: AnyBlock[]) => {
@@ -458,7 +423,9 @@ export default function DistributionPage() {
       .join("");
 
     try {
-      console.log("selectedEmailList", selectedEmailList);
+      // Get email list information from action buttons
+      const emailListInfo = getEmailListFromActionButtons();
+      console.log("Email list info from action buttons:", emailListInfo);
 
       // Create a FormData object to send the file and other data
       const formData = new FormData();
@@ -470,106 +437,71 @@ export default function DistributionPage() {
       } else {
         formData.append("category[]", category); // If category is a single value, send it as an array
       }
-      // Append category as an array
+      // Append country as an array
       if (Array.isArray(country)) {
         country.forEach((cat) => formData.append("country[]", cat)); // Sending as an array
       } else {
-        formData.append("country[]", country); // If category is a single value, send it as an array
+        formData.append("country[]", country); // If country is a single value, send it as an array
       }
       formData.append("type", type);
       formData.append("author", session?.user?.email ?? "");
       formData.append("urlToImage", articleImage); // Assuming articleImage is a File object
 
-      // Add selected email list data
-      if (selectedEmailList !== "clear") {
-        const selectedList = emailLists.find(
-          (list) => list._id === selectedEmailList
-        );
-        if (selectedList) {
-          console.log("Adding email list data:", {
-            id: selectedEmailList,
-            name: selectedList.name,
-            subscriberCount: selectedList.subscriberCount,
+      // Determine if we have a valid email list
+      let hasValidEmailList = false;
+      if (emailListInfo?.emailListId) {
+        // Additional validation to prevent backend errors
+        const emailListId = emailListInfo.emailListId.trim();
+        if (emailListId && emailListId !== "none" && emailListId.length > 0) {
+          console.log("Adding email list data from action buttons:", {
+            emailListId: emailListId,
           });
 
-          // Check if email list has subscribers
-          const subscriberEmails = selectedList.subscribers.map(
-            (sub) => sub.email
-          );
-
-          if (subscriberEmails.length === 0) {
-            toast({
-              title: "Empty Email List",
-              description: `The selected email list "${selectedList.name}" has no active subscribers. Please select a different list or add subscribers first.`,
-              variant: "destructive",
-            });
-            return;
-          }
-
-          formData.append("emailListId", selectedEmailList);
-
-          // Make the POST request
-          if (
-            htmlContent &&
-            title &&
-            category &&
-            country &&
-            type &&
-            articleImage
-          ) {
-            const response = await axios.post(
-              `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/news-api/article/media-suite`,
-              formData,
-              {
-                headers: {
-                  "Content-Type": "multipart/form-data", // Important for file uploads
-                },
-              }
-            );
-
-            if (response.status === 201) {
-              const successMessage = selectedEmailList
-                ? `Article published successfully to ${
-                    emailLists.find((list) => list._id === selectedEmailList)
-                      ?.name
-                  } (${
-                    emailLists.find((list) => list._id === selectedEmailList)
-                      ?.subscriberCount
-                  } subscribers)`
-                : "Article published successfully";
-
-              toast({
-                title: "Success",
-                description: successMessage,
-              });
-              return;
-            } else {
-              throw new Error("Publishing failed");
-            }
-          } else {
-            toast({
-              title: "Publishing failed",
-              description: "Please fill in all fields",
-              variant: "destructive",
-            });
-          }
+          formData.append("emailListId", emailListId);
+          hasValidEmailList = true;
         } else {
-          toast({
-            title: "Email List Not Found",
-            description:
-              "The selected email list could not be found. Please refresh and try again.",
-            variant: "destructive",
-          });
-          return;
+          console.log(
+            "Invalid email list ID detected, skipping email integration:",
+            emailListId
+          );
         }
       } else {
-        console.log("No email list selected");
+        console.log(
+          "No email list found in action buttons, publishing without email integration"
+        );
+      }
+
+      // Make the POST request
+      if (htmlContent && title && category && country && type && articleImage) {
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/news-api/article/media-suite`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data", // Important for file uploads
+            },
+          }
+        );
+
+        if (response.status === 201) {
+          const successMessage = hasValidEmailList
+            ? `Article published successfully with email list integration`
+            : `Article published successfully`;
+
+          toast({
+            title: "Success",
+            description: successMessage,
+          });
+          return;
+        } else {
+          throw new Error("Publishing failed");
+        }
+      } else {
         toast({
           title: "Publishing failed",
-          description: "Please select an email list",
+          description: "Please fill in all fields",
           variant: "destructive",
         });
-        return;
       }
     } catch (error) {
       console.error("Error uploading to Media Suite:", error);
@@ -787,136 +719,6 @@ export default function DistributionPage() {
           </CardContent>
         </Card>
 
-        {/* Email List Selector */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Select Email List</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoadingEmailLists ? (
-              <div className="text-center py-4">
-                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                <p className="text-sm text-muted-foreground">
-                  Loading email lists...
-                </p>
-              </div>
-            ) : emailLists.length === 0 ? (
-              <div className="text-center py-4">
-                <p className="text-sm text-muted-foreground">
-                  No email lists found. Create email lists in Settings first.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <Select
-                  value={selectedEmailList}
-                  onValueChange={setSelectedEmailList}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Choose an email list..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="clear">
-                      <div className="flex items-center justify-between w-full">
-                        <span className="font-medium text-muted-foreground">
-                          Clear selection
-                        </span>
-                        <span className="text-sm text-muted-foreground ml-2">
-                          (No email list)
-                        </span>
-                      </div>
-                    </SelectItem>
-                    {emailLists.map((list) => (
-                      <SelectItem key={list._id} value={list._id}>
-                        <div className="flex items-center justify-between w-full">
-                          <span className="font-medium">{list.name}</span>
-                          <span className="text-sm text-muted-foreground ml-2">
-                            ({list.subscriberCount} subscribers)
-                          </span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {selectedEmailList && (
-                  <div className="p-3 rounded-lg">
-                    {(() => {
-                      const selectedList = emailLists.find(
-                        (list) => list._id === selectedEmailList
-                      );
-                      return selectedList ? (
-                        <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium text-sm">
-                              {selectedList.name}
-                            </h4>
-                            {(() => {
-                              const activeSubscribers =
-                                selectedList.subscriberCount;
-
-                              if (activeSubscribers === 0) {
-                                return (
-                                  <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
-                                    Empty
-                                  </span>
-                                );
-                              } else {
-                                return (
-                                  <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                                    Ready
-                                  </span>
-                                );
-                              }
-                            })()}
-                          </div>
-                          <div className="grid grid-cols-2 gap-4 text-xs text-muted-foreground">
-                            <div>
-                              <span className="font-medium">
-                                Total Subscribers:
-                              </span>{" "}
-                              {selectedList.subscriberCount}
-                            </div>
-                          </div>
-                          {selectedList.tags.length > 0 && (
-                            <div className="mt-2 text-xs text-muted-foreground">
-                              <span className="font-medium">Tags:</span>{" "}
-                              <span>{selectedList.tags.join(", ")}</span>
-                            </div>
-                          )}
-                          {selectedList.description && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                              <span className="font-medium">Description:</span>{" "}
-                              {selectedList.description}
-                            </p>
-                          )}
-                          <div className="mt-2 text-xs text-muted-foreground">
-                            <span className="font-medium">Created:</span>{" "}
-                            {new Date(
-                              selectedList.createdAt
-                            ).toLocaleDateString()}
-                          </div>
-                          {(() => {
-                            if (selectedList.subscriberCount === 0) {
-                              return (
-                                <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-800">
-                                  ⚠️ This email list has no active subscribers
-                                  and cannot be used for publishing.
-                                </div>
-                              );
-                            }
-                            return null;
-                          })()}
-                        </div>
-                      ) : null;
-                    })()}
-                  </div>
-                )}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
         {/* Content Editor */}
         <div className="w-full space-y-6">
           <StreamlinedEditor
@@ -932,7 +734,13 @@ export default function DistributionPage() {
               category?: string[],
               country?: string[],
               type?: string,
-              imageBase64?: any
+              imageBase64?: any,
+              seoData?: {
+                headline: string;
+                keywords: string[];
+                metaDescription: string;
+              },
+              actionButtons?: ActionButton[]
             ) => {
               setTitle(newTitle);
               setBlocks(newBlocks);
@@ -940,6 +748,7 @@ export default function DistributionPage() {
               setCountry(country || []);
               setType(type || "");
               setArticleImage(imageBase64);
+              setActionButtons(actionButtons || []);
             }}
             initialTitle={title}
             initialBlocks={blocks}

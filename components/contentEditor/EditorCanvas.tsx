@@ -31,7 +31,10 @@ import { SortableBlock } from "./SortableBlock";
 
 interface EditorCanvasProps {
   initialBlocks?: AnyBlock[];
-  onContentChange?: (blocks: AnyBlock[]) => void;
+  onContentChange?: (
+    blocks: AnyBlock[],
+    actionButtons?: ActionButton[]
+  ) => void;
   className?: string;
 }
 
@@ -347,21 +350,6 @@ export function EditorCanvas({
                     ))}
                   </AnimatePresence>
 
-                  {actionButtons.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      className="mt-6 w-full relative z-10"
-                    >
-                      <ActionButtonBlock
-                        buttons={actionButtons}
-                        onRemoveButton={() => {}}
-                        showRemoveButtons={false}
-                      />
-                    </motion.div>
-                  )}
-
                   {editorState.blocks.length === 0 && (
                     <div className="text-center py-12 w-full relative z-10">
                       <div className="text-muted-foreground mb-4">
@@ -510,7 +498,7 @@ export function EditorCanvas({
                   }));
                 }
 
-                onContentChange(newBlocks);
+                onContentChange(newBlocks, actionButtons);
                 toast({
                   title:
                     blockToImprove.id === "bulk"

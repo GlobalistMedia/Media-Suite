@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Save, Eye, FileText, Sparkles, CheckCircle, Send } from "lucide-react";
-import type { AnyBlock } from "@/types/editor";
+import type { AnyBlock, ActionButton } from "@/types/editor";
 import {
   Select,
   SelectContent,
@@ -42,7 +42,8 @@ interface StreamlinedEditorProps {
       headline: string;
       keywords: string[];
       metaDescription: string;
-    }
+    },
+    actionButtons?: ActionButton[]
   ) => void;
   initialTitle?: string;
   initialBlocks?: AnyBlock[];
@@ -79,6 +80,7 @@ export function StreamlinedEditor({
   const [seoHeadline, setSeoHeadline] = useState<string>("");
   const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
   const [seoMetaDescription, setSeoMetaDescription] = useState<string>("");
+  const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
 
   const { toast } = useToast();
 
@@ -142,7 +144,8 @@ export function StreamlinedEditor({
           headline: seoHeadline,
           keywords: seoKeywords,
           metaDescription: seoMetaDescription,
-        }
+        },
+        actionButtons
       );
     }, 300); // Debounce to prevent excessive updates
 
@@ -157,6 +160,7 @@ export function StreamlinedEditor({
     seoHeadline,
     seoKeywords,
     seoMetaDescription,
+    actionButtons,
     onContentChange,
   ]);
 
@@ -362,7 +366,12 @@ export function StreamlinedEditor({
           <Card className="p-4 sm:p-6 min-h-[400px] w-full mb-6">
             <EditorCanvas
               initialBlocks={blocks}
-              onContentChange={setBlocks}
+              onContentChange={(newBlocks, newActionButtons) => {
+                setBlocks(newBlocks);
+                if (newActionButtons) {
+                  setActionButtons(newActionButtons);
+                }
+              }}
               className="focus-within:ring-2 focus-within:ring-primary/20 rounded-lg"
             />
           </Card>
