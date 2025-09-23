@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { PlatformIntegrations } from "@/components/settings/PlatformIntegrations";
 import { EmailListManager } from "@/components/settings/EmailListManager";
-import { PrivacySettings } from "@/components/settings/PrivacySettings";
+// import { PrivacySettings } from "@/components/settings/PrivacySettings";
 import { GeneralSettings } from "@/components/settings/GeneralSettings";
 import {
   Bell,
@@ -31,7 +31,7 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="notifications" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-auto p-1">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1">
           <TabsTrigger
             value="notifications"
             className="flex items-center gap-2 py-2"
@@ -54,10 +54,10 @@ export default function SettingsPage() {
             <Mail className="h-4 w-4" />
             <span className="hidden sm:inline">Email</span>
           </TabsTrigger>
-          <TabsTrigger value="privacy" className="flex items-center gap-2 py-2">
+          {/* <TabsTrigger value="privacy" className="flex items-center gap-2 py-2">
             <Shield className="h-4 w-4" />
             <span className="hidden sm:inline">Privacy</span>
-          </TabsTrigger>
+          </TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="notifications" className="space-y-6">
@@ -76,9 +76,9 @@ export default function SettingsPage() {
           <GeneralSettings />
         </TabsContent>
 
-        <TabsContent value="privacy" className="space-y-6">
+        {/* <TabsContent value="privacy" className="space-y-6">
           <PrivacySettings />
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
     </div>
   );

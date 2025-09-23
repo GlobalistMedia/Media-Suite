@@ -1,41 +1,49 @@
-"use client"
+"use client";
 
-import { Card } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useState, useEffect } from 'react'
-import { Button } from '@/components/ui/button'
-import { Save, Check, Calendar, Clock } from 'lucide-react'
-import axios from 'axios'
+import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Save, Check, Calendar, Clock } from "lucide-react";
+import axios from "axios";
 
 interface NotificationSettingsProps {
   initialSettings?: {
-    emailNotifications: boolean
-    pushNotifications: boolean
-    marketingEmails: boolean
-    weeklyDigest: boolean
+    emailNotifications: boolean;
+    pushNotifications: boolean;
+    marketingEmails: boolean;
+    weeklyDigest: boolean;
     calendarNotifications?: {
       events: {
-        emailReminder: boolean
-        reminderTime: number
-        pushNotification: boolean
-      }
+        emailReminder: boolean;
+        reminderTime: number;
+        pushNotification: boolean;
+      };
       meetings: {
-        emailReminder: boolean
-        reminderTime: number
-        pushNotification: boolean
-      }
+        emailReminder: boolean;
+        reminderTime: number;
+        pushNotification: boolean;
+      };
       scheduledPosts: {
-        emailReminder: boolean
-        reminderTime: number
-        pushNotification: boolean
-      }
-    }
-  }
+        emailReminder: boolean;
+        reminderTime: number;
+        pushNotification: boolean;
+      };
+    };
+  };
 }
 
-export function NotificationSettings({ initialSettings }: NotificationSettingsProps) {
+export function NotificationSettings({
+  initialSettings,
+}: NotificationSettingsProps) {
   const [settings, setSettings] = useState({
     emailNotifications: initialSettings?.emailNotifications ?? true,
     pushNotifications: initialSettings?.pushNotifications ?? true,
@@ -43,71 +51,88 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
     weeklyDigest: initialSettings?.weeklyDigest ?? true,
     calendarNotifications: {
       events: {
-        emailReminder: initialSettings?.calendarNotifications?.events?.emailReminder ?? true,
-        reminderTime: initialSettings?.calendarNotifications?.events?.reminderTime ?? 15,
-        pushNotification: initialSettings?.calendarNotifications?.events?.pushNotification ?? true,
+        emailReminder:
+          initialSettings?.calendarNotifications?.events?.emailReminder ?? true,
+        reminderTime:
+          initialSettings?.calendarNotifications?.events?.reminderTime ?? 15,
+        pushNotification:
+          initialSettings?.calendarNotifications?.events?.pushNotification ??
+          true,
       },
       meetings: {
-        emailReminder: initialSettings?.calendarNotifications?.meetings?.emailReminder ?? true,
-        reminderTime: initialSettings?.calendarNotifications?.meetings?.reminderTime ?? 30,
-        pushNotification: initialSettings?.calendarNotifications?.meetings?.pushNotification ?? true,
+        emailReminder:
+          initialSettings?.calendarNotifications?.meetings?.emailReminder ??
+          true,
+        reminderTime:
+          initialSettings?.calendarNotifications?.meetings?.reminderTime ?? 30,
+        pushNotification:
+          initialSettings?.calendarNotifications?.meetings?.pushNotification ??
+          true,
       },
       scheduledPosts: {
-        emailReminder: initialSettings?.calendarNotifications?.scheduledPosts?.emailReminder ?? false,
-        reminderTime: initialSettings?.calendarNotifications?.scheduledPosts?.reminderTime ?? 5,
-        pushNotification: initialSettings?.calendarNotifications?.scheduledPosts?.pushNotification ?? true,
+        emailReminder:
+          initialSettings?.calendarNotifications?.scheduledPosts
+            ?.emailReminder ?? false,
+        reminderTime:
+          initialSettings?.calendarNotifications?.scheduledPosts
+            ?.reminderTime ?? 5,
+        pushNotification:
+          initialSettings?.calendarNotifications?.scheduledPosts
+            ?.pushNotification ?? true,
       },
     },
-  })
-  const [isSaving, setIsSaving] = useState(false)
-  const [lastSaved, setLastSaved] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load settings on component mount
   useEffect(() => {
-    loadSettings()
-  }, [])
+    loadSettings();
+  }, []);
 
   const loadSettings = async () => {
     try {
-      const response = await axios.get('/api/settings')
+      const response = await axios.get("/api/settings");
       if (response.data.success && response.data.data.notifications) {
-        setSettings(response.data.data.notifications)
+        setSettings(response.data.data.notifications);
       }
     } catch (error) {
-      console.error('Error loading notification settings:', error)
+      console.error("Error loading notification settings:", error);
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleSettingChange = (key: keyof typeof settings, value: boolean) => {
-    setSettings(prev => ({ ...prev, [key]: value }))
-  }
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
 
   const saveSettings = async () => {
-    setIsSaving(true)
+    setIsSaving(true);
     try {
-      const response = await axios.patch('/api/settings', {
-        category: 'notifications',
-        data: settings
-      })
-      
+      const response = await axios.patch("/api/settings", {
+        category: "notifications",
+        data: settings,
+      });
+
       if (response.data.success) {
-        setLastSaved(new Date().toLocaleTimeString())
+        setLastSaved(new Date().toLocaleTimeString());
       }
     } catch (error: any) {
-      console.error('Error saving notification settings:', error)
-      alert('Error saving settings. Please try again.')
+      console.error("Error saving notification settings:", error);
+      alert("Error saving settings. Please try again.");
     } finally {
-      setIsSaving(false)
+      setIsSaving(false);
     }
-  }
+  };
 
   if (isLoading) {
     return (
       <Card className="p-4 md:p-6">
-        <h2 className="text-lg md:text-xl font-semibold mb-6">Notification Preferences</h2>
+        <h2 className="text-lg md:text-xl font-semibold mb-6">
+          Notification Preferences
+        </h2>
         <div className="space-y-6">
           <div className="animate-pulse">
             <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -115,13 +140,15 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
           </div>
         </div>
       </Card>
-    )
+    );
   }
 
   return (
     <Card className="p-4 md:p-6">
-      <h2 className="text-lg md:text-xl font-semibold mb-6">Notification Preferences</h2>
-      
+      <h2 className="text-lg md:text-xl font-semibold mb-6">
+        Notification Preferences
+      </h2>
+
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
@@ -130,37 +157,43 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
               Receive email updates about your activity and posts
             </p>
           </div>
-          <Switch 
+          <Switch
             checked={settings.emailNotifications}
-            onCheckedChange={(checked) => handleSettingChange('emailNotifications', checked)}
+            onCheckedChange={(checked) =>
+              handleSettingChange("emailNotifications", checked)
+            }
           />
         </div>
 
-        <div className="flex items-center justify-between">
+        {/* <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <Label className="text-base">Push Notifications</Label>
             <p className="text-sm text-muted-foreground">
               Receive push notifications about your activity
             </p>
           </div>
-          <Switch 
+          <Switch
             checked={settings.pushNotifications}
-            onCheckedChange={(checked) => handleSettingChange('pushNotifications', checked)}
+            onCheckedChange={(checked) =>
+              handleSettingChange("pushNotifications", checked)
+            }
           />
-        </div>
+        </div> */}
 
-        <div className="flex items-center justify-between">
+        {/* <div className="flex items-center justify-between">
           <div className="space-y-0.5">
             <Label className="text-base">Marketing Emails</Label>
             <p className="text-sm text-muted-foreground">
               Receive promotional emails and product updates
             </p>
           </div>
-          <Switch 
+          <Switch
             checked={settings.marketingEmails}
-            onCheckedChange={(checked) => handleSettingChange('marketingEmails', checked)}
+            onCheckedChange={(checked) =>
+              handleSettingChange("marketingEmails", checked)
+            }
           />
-        </div>
+        </div> */}
 
         <div className="flex items-center justify-between">
           <div className="space-y-0.5">
@@ -169,9 +202,11 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
               Get a weekly summary of your social media performance
             </p>
           </div>
-          <Switch 
+          <Switch
             checked={settings.weeklyDigest}
-            onCheckedChange={(checked) => handleSettingChange('weeklyDigest', checked)}
+            onCheckedChange={(checked) =>
+              handleSettingChange("weeklyDigest", checked)
+            }
           />
         </div>
 
@@ -181,7 +216,7 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
             <Calendar className="h-5 w-5 text-blue-600" />
             <h3 className="text-lg font-semibold">Calendar Notifications</h3>
           </div>
-          
+
           {/* Events */}
           <div className="space-y-4 mb-6">
             <div className="flex items-center justify-between">
@@ -191,10 +226,10 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                   Get notified about upcoming calendar events
                 </p>
               </div>
-              <Switch 
+              <Switch
                 checked={settings.calendarNotifications.events.emailReminder}
                 onCheckedChange={(checked) => {
-                  setSettings(prev => ({
+                  setSettings((prev) => ({
                     ...prev,
                     calendarNotifications: {
                       ...prev.calendarNotifications,
@@ -202,13 +237,13 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                         ...prev.calendarNotifications.events,
                         emailReminder: checked,
                         pushNotification: checked, // Keep in sync for now
-                      }
-                    }
-                  }))
+                      },
+                    },
+                  }));
                 }}
               />
             </div>
-            
+
             {settings.calendarNotifications.events.emailReminder && (
               <div className="ml-6 space-y-3">
                 <div className="flex items-center gap-3">
@@ -216,19 +251,19 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <Label className="text-sm">Reminder Time:</Label>
                   </div>
-                  <Select 
+                  <Select
                     value={settings.calendarNotifications.events.reminderTime.toString()}
                     onValueChange={(value) => {
-                      setSettings(prev => ({
+                      setSettings((prev) => ({
                         ...prev,
                         calendarNotifications: {
                           ...prev.calendarNotifications,
                           events: {
                             ...prev.calendarNotifications.events,
                             reminderTime: parseInt(value),
-                          }
-                        }
-                      }))
+                          },
+                        },
+                      }));
                     }}
                   >
                     <SelectTrigger className="w-48">
@@ -257,10 +292,10 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                   Get notified about upcoming meetings
                 </p>
               </div>
-              <Switch 
+              <Switch
                 checked={settings.calendarNotifications.meetings.emailReminder}
                 onCheckedChange={(checked) => {
-                  setSettings(prev => ({
+                  setSettings((prev) => ({
                     ...prev,
                     calendarNotifications: {
                       ...prev.calendarNotifications,
@@ -268,13 +303,13 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                         ...prev.calendarNotifications.meetings,
                         emailReminder: checked,
                         pushNotification: checked, // Keep in sync for now
-                      }
-                    }
-                  }))
+                      },
+                    },
+                  }));
                 }}
               />
             </div>
-            
+
             {settings.calendarNotifications.meetings.emailReminder && (
               <div className="ml-6 space-y-3">
                 <div className="flex items-center gap-3">
@@ -282,19 +317,19 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <Label className="text-sm">Reminder Time:</Label>
                   </div>
-                  <Select 
+                  <Select
                     value={settings.calendarNotifications.meetings.reminderTime.toString()}
                     onValueChange={(value) => {
-                      setSettings(prev => ({
+                      setSettings((prev) => ({
                         ...prev,
                         calendarNotifications: {
                           ...prev.calendarNotifications,
                           meetings: {
                             ...prev.calendarNotifications.meetings,
                             reminderTime: parseInt(value),
-                          }
-                        }
-                      }))
+                          },
+                        },
+                      }));
                     }}
                   >
                     <SelectTrigger className="w-48">
@@ -323,10 +358,12 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                   Get notified about upcoming scheduled posts
                 </p>
               </div>
-              <Switch 
-                checked={settings.calendarNotifications.scheduledPosts.emailReminder}
+              <Switch
+                checked={
+                  settings.calendarNotifications.scheduledPosts.emailReminder
+                }
                 onCheckedChange={(checked) => {
-                  setSettings(prev => ({
+                  setSettings((prev) => ({
                     ...prev,
                     calendarNotifications: {
                       ...prev.calendarNotifications,
@@ -334,13 +371,13 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                         ...prev.calendarNotifications.scheduledPosts,
                         emailReminder: checked,
                         pushNotification: checked, // Keep in sync for now
-                      }
-                    }
-                  }))
+                      },
+                    },
+                  }));
                 }}
               />
             </div>
-            
+
             {settings.calendarNotifications.scheduledPosts.emailReminder && (
               <div className="ml-6 space-y-3">
                 <div className="flex items-center gap-3">
@@ -348,19 +385,19 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
                     <Clock className="h-4 w-4 text-muted-foreground" />
                     <Label className="text-sm">Reminder Time:</Label>
                   </div>
-                  <Select 
+                  <Select
                     value={settings.calendarNotifications.scheduledPosts.reminderTime.toString()}
                     onValueChange={(value) => {
-                      setSettings(prev => ({
+                      setSettings((prev) => ({
                         ...prev,
                         calendarNotifications: {
                           ...prev.calendarNotifications,
                           scheduledPosts: {
                             ...prev.calendarNotifications.scheduledPosts,
                             reminderTime: parseInt(value),
-                          }
-                        }
-                      }))
+                          },
+                        },
+                      }));
                     }}
                   >
                     <SelectTrigger className="w-48">
@@ -401,5 +438,5 @@ export function NotificationSettings({ initialSettings }: NotificationSettingsPr
         </div>
       </div>
     </Card>
-  )
+  );
 }

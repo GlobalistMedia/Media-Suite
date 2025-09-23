@@ -1,6 +1,14 @@
 export interface Block {
   id: string;
-  type: "text" | "image" | "video" | "embed" | "heading" | "quote" | "list" | "audio";
+  type:
+    | "text"
+    | "image"
+    | "video"
+    | "embed"
+    | "heading"
+    | "quote"
+    | "list"
+    | "audio";
   content: any;
   order: number;
 }
@@ -126,5 +134,6 @@ export interface ActionButton {
     amount?: number;
     currency?: string;
     style?: "button" | "widget";
+    emailListId?: string;
   };
 }

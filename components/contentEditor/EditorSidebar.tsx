@@ -50,10 +50,7 @@ export function EditorSidebar({
   return (
     <>
       {/* Sidebar Overlay */}
-      <div
-        className="fixed inset-0 bg-black/20 z-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
 
       {/* Sidebar */}
       <motion.div
@@ -71,9 +68,7 @@ export function EditorSidebar({
           <div className="p-4 space-y-6">
             {/* Add Blocks Section */}
             <BlockAddButtons onAddBlock={onAddBlock} />
-
             <Separator />
-
             {/* Content Blocks Management */}
             <BlockManager
               editorState={editorState}
@@ -82,9 +77,7 @@ export function EditorSidebar({
               onMoveBlockUp={onMoveBlockUp}
               onMoveBlockDown={onMoveBlockDown}
             />
-
             <Separator />
-
             {/* Action Buttons Section */}
             <ActionButtonManager
               actionButtons={actionButtons}
@@ -94,10 +87,8 @@ export function EditorSidebar({
               onReorderActionButtons={onReorderActionButtons}
               onMoveActionButtonUp={onMoveActionButtonUp}
               onMoveActionButtonDown={onMoveActionButtonDown}
-
-
-            />            <Separator />
-
+            />{" "}
+            <Separator />
             {/* Quick Actions Section */}
             <QuickActions
               editorState={editorState}
