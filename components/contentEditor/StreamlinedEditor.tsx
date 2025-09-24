@@ -9,7 +9,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Eye, FileText, Sparkles, CheckCircle, Send } from "lucide-react";
+import {
+  Save,
+  Eye,
+  FileText,
+  Sparkles,
+  CheckCircle,
+  Send,
+  Mail,
+  Heart,
+} from "lucide-react";
 import type { AnyBlock, ActionButton } from "@/types/editor";
 import {
   Select,
@@ -42,11 +51,12 @@ interface StreamlinedEditorProps {
       headline: string;
       keywords: string[];
       metaDescription: string;
-    },
-    actionButtons?: ActionButton[]
+    }
   ) => void;
-  initialTitle?: string;
-  initialBlocks?: AnyBlock[];
+  title: string;
+  blocks: AnyBlock[];
+  actionButtons?: ActionButton[];
+  selectedBlockId?: string | null;
 }
 
 export function StreamlinedEditor({
@@ -56,12 +66,12 @@ export function StreamlinedEditor({
   onPublish,
   platforms,
   onContentChange,
-  initialTitle = "",
-  initialBlocks = [],
+  title,
+  blocks,
+  actionButtons = [],
+  selectedBlockId = null,
 }: StreamlinedEditorProps) {
-  const [title, setTitle] = useState(initialTitle);
   const [type, setType] = useState("");
-  const [blocks, setBlocks] = useState<AnyBlock[]>(initialBlocks);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
@@ -80,7 +90,6 @@ export function StreamlinedEditor({
   const [seoHeadline, setSeoHeadline] = useState<string>("");
   const [seoKeywords, setSeoKeywords] = useState<string[]>([]);
   const [seoMetaDescription, setSeoMetaDescription] = useState<string>("");
-  const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
 
   const { toast } = useToast();
 
@@ -144,8 +153,7 @@ export function StreamlinedEditor({
           headline: seoHeadline,
           keywords: seoKeywords,
           metaDescription: seoMetaDescription,
-        },
-        actionButtons
+        }
       );
     }, 300); // Debounce to prevent excessive updates
 
@@ -160,7 +168,6 @@ export function StreamlinedEditor({
     seoHeadline,
     seoKeywords,
     seoMetaDescription,
-    actionButtons,
     onContentChange,
   ]);
 
@@ -354,22 +361,73 @@ export function StreamlinedEditor({
       <div className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
           <Card className="p-6 mb-6">
-            <Input
-              placeholder="Enter your title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="text-2xl font-bold border-none bg-transparent placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:ring-offset-0 p-0"
-            />
+            <div className="flex items-center gap-4">
+              <Input
+                placeholder="Enter your title..."
+                value={title}
+                onChange={(e) => {
+                  if (onContentChange) {
+                    onContentChange(
+                      e.target.value,
+                      blocks,
+                      selectedCategory,
+                      [selectedCountry],
+                      type,
+                      imageBase64,
+                      {
+                        headline: seoHeadline,
+                        keywords: seoKeywords,
+                        metaDescription: seoMetaDescription,
+                      }
+                    );
+                  }
+                }}
+                className="text-2xl font-bold border-none bg-transparent placeholder:text-muted-foreground/50 focus-visible:ring-0 focus-visible:ring-offset-0 p-0 flex-1"
+              />
+              {actionButtons.length > 0 && (
+                <div className="flex gap-2">
+                  {actionButtons.map((button) => (
+                    <Button
+                      key={button.id}
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2"
+                    >
+                      {button.type === "email_subscribe" && (
+                        <Mail className="h-4 w-4" />
+                      )}
+                      {button.type === "donation" && (
+                        <Heart className="h-4 w-4" />
+                      )}
+                      {button.label}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </div>
           </Card>
 
           {/* Editor Canvas */}
           <Card className="p-4 sm:p-6 min-h-[400px] w-full mb-6">
             <EditorCanvas
               initialBlocks={blocks}
-              onContentChange={(newBlocks, newActionButtons) => {
-                setBlocks(newBlocks);
-                if (newActionButtons) {
-                  setActionButtons(newActionButtons);
+              actionButtons={actionButtons}
+              selectedBlockId={selectedBlockId}
+              onContentChange={(newBlocks) => {
+                if (onContentChange) {
+                  onContentChange(
+                    title,
+                    newBlocks,
+                    selectedCategory,
+                    [selectedCountry],
+                    type,
+                    imageBase64,
+                    {
+                      headline: seoHeadline,
+                      keywords: seoKeywords,
+                      metaDescription: seoMetaDescription,
+                    }
+                  );
                 }
               }}
               className="focus-within:ring-2 focus-within:ring-primary/20 rounded-lg"
@@ -578,7 +636,21 @@ export function StreamlinedEditor({
                 : Math.random().toString(36).substr(2, 9),
             order: i,
           }));
-          setBlocks(newBlocks);
+          if (onContentChange) {
+            onContentChange(
+              title,
+              newBlocks,
+              selectedCategory,
+              [selectedCountry],
+              type,
+              imageBase64,
+              {
+                headline: seoHeadline,
+                keywords: seoKeywords,
+                metaDescription: seoMetaDescription,
+              }
+            );
+          }
           // Clear selection state after insertion
           // Note: Selection state is managed by EditorCanvas internally
           toast({

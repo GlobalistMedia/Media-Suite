@@ -7,9 +7,27 @@ import { useToast } from "@/hooks/use-toast";
 import { StreamlinedEditor } from "@/components/contentEditor/StreamlinedEditor";
 import { UpgradeModal } from "@/components/contentEditor/UpgradeModal";
 import { PublishingHubModal } from "@/components/PublishingHubModal";
+import { ActionButtons } from "@/components/contentEditor/ActionButtons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PlatformSelector } from "@/components/platform-selector";
-import { Sparkles } from "lucide-react";
+import {
+  Sparkles,
+  Type,
+  Image as ImageIcon,
+  Video,
+  Link2,
+  Heading1,
+  Quote,
+  List,
+  Music,
+  Volume2,
+  Trash2,
+  GripVertical,
+  Eye,
+  EyeOff,
+  ChevronUp,
+  ChevronDown,
+} from "lucide-react";
 import type { AnyBlock, ActionButton } from "@/types/editor";
 import {
   Select,
@@ -18,7 +36,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import axios from "axios";
+
+// Email list interfaces (matching EmailListManager)
+interface Subscriber {
+  id: string;
+  email: string;
+  name?: string;
+  subscribedAt: Date;
+  unsubscribedAt?: Date;
+  source?: string;
+}
+
+interface EmailList {
+  _id: string;
+  name: string;
+  description: string;
+  tags: string[];
+  createdAt: Date;
+  subscribers: Subscriber[];
+  subscriberCount: number;
+}
+
+// Email list interface for ActionButtons component
+interface EmailListForActionButtons {
+  _id: string;
+  name: string;
+  subscriberCount: number;
+  tags: string[];
+  description?: string;
+  createdAt: string;
+}
 
 // Platform mapping utility
 const platformMapping: Record<number, string> = {
@@ -45,7 +98,14 @@ export default function DistributionPage() {
   const [showPublishingHub, setShowPublishingHub] = useState(false);
   const [currentPostId, setCurrentPostId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Action buttons state
   const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+
+  // Email list state
+  const [emailLists, setEmailLists] = useState<EmailList[]>([]);
+  const [isLoadingEmailLists, setIsLoadingEmailLists] = useState(true);
 
   const router = useRouter();
   const { toast } = useToast();
@@ -115,6 +175,37 @@ export default function DistributionPage() {
       }
     }
   }, [status, loadPost]);
+
+  // Function to load email lists (similar to EmailListManager)
+  const loadEmailLists = useCallback(async () => {
+    try {
+      setIsLoadingEmailLists(true);
+      const response = await axios.get(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/email-list/me?creatorEmail=${session?.user?.email}&page=1&limit=10000`
+      );
+      console.log("response", response.data);
+      if (response.data.status === 200 && response.data.response.emails) {
+        const emailLists = response.data.response.emails;
+
+        // Load email lists
+        if (emailLists) {
+          setEmailLists(emailLists);
+          console.log("Email lists loaded:", emailLists);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading email lists:", error);
+    } finally {
+      setIsLoadingEmailLists(false);
+    }
+  }, [session?.user?.email]);
+
+  // Load email lists from settings
+  useEffect(() => {
+    if (status === "authenticated") {
+      loadEmailLists();
+    }
+  }, [status, loadEmailLists]);
 
   // Helper function to convert block to HTML content
   const convertBlockToHTML = (block: any) => {
@@ -241,24 +332,150 @@ export default function DistributionPage() {
     );
   };
 
-  // Helper function to extract email list information from action buttons
-  const getEmailListFromActionButtons = () => {
-    const emailSubscribeButton = actionButtons.find(
-      (button) => button.type === "email_subscribe" && button.config.emailListId
-    );
+  // Sidebar block management functions
+  const handleAddBlock = (type: AnyBlock["type"]) => {
+    const newBlock: AnyBlock = {
+      id: Math.random().toString(36).substr(2, 9),
+      type,
+      content: getDefaultBlockContent(type),
+      order: blocks.length,
+    };
+    setBlocks((prev) => [...prev, newBlock]);
+    toast({
+      title: "Block added",
+      description: `Added a new ${type} block`,
+    });
+  };
 
-    // Validate emailListId exists and is not empty
-    if (
-      emailSubscribeButton?.config.emailListId &&
-      emailSubscribeButton.config.emailListId.trim() !== "" &&
-      emailSubscribeButton.config.emailListId !== "none"
-    ) {
-      return {
-        emailListId: emailSubscribeButton.config.emailListId,
-      };
+  const getDefaultBlockContent = (type: AnyBlock["type"]): any => {
+    switch (type) {
+      case "text":
+        return { text: "", html: "" };
+      case "heading":
+        return { text: "", level: 1 };
+      case "image":
+        return { url: "", alt: "" };
+      case "video":
+        return { url: "" };
+      case "audio":
+        return { url: "", title: "", artist: "" };
+      case "embed":
+        return { url: "", html: "" };
+      case "quote":
+        return { text: "", author: "" };
+      case "list":
+        return { items: [""], ordered: false };
+      default:
+        return {};
     }
+  };
 
-    return null;
+  const handleDeleteBlock = (blockId: string) => {
+    setBlocks((prev) => prev.filter((block) => block.id !== blockId));
+    if (selectedBlockId === blockId) {
+      setSelectedBlockId(null);
+    }
+    toast({
+      title: "Block deleted",
+      description: "The block has been removed",
+    });
+  };
+
+  const handleSelectBlock = (blockId: string) => {
+    setSelectedBlockId(blockId);
+  };
+
+  const handleMoveBlockUp = (blockId: string) => {
+    const currentIndex = blocks.findIndex((block) => block.id === blockId);
+    if (currentIndex > 0) {
+      const newBlocks = [...blocks];
+      [newBlocks[currentIndex], newBlocks[currentIndex - 1]] = [
+        newBlocks[currentIndex - 1],
+        newBlocks[currentIndex],
+      ];
+      setBlocks(newBlocks.map((block, index) => ({ ...block, order: index })));
+      toast({ title: "Block moved up" });
+    }
+  };
+
+  const handleMoveBlockDown = (blockId: string) => {
+    const currentIndex = blocks.findIndex((block) => block.id === blockId);
+    if (currentIndex < blocks.length - 1) {
+      const newBlocks = [...blocks];
+      [newBlocks[currentIndex], newBlocks[currentIndex + 1]] = [
+        newBlocks[currentIndex + 1],
+        newBlocks[currentIndex],
+      ];
+      setBlocks(newBlocks.map((block, index) => ({ ...block, order: index })));
+      toast({ title: "Block moved down" });
+    }
+  };
+
+  // Action button management functions
+  const handleRemoveActionButton = (buttonId: string) => {
+    setActionButtons((prev) => prev.filter((btn) => btn.id !== buttonId));
+    toast({
+      title: "Action button removed",
+      description: "The action button has been removed from your content.",
+    });
+  };
+
+  const handleClearAllActionButtons = () => {
+    setActionButtons([]);
+    toast({
+      title: "All action buttons cleared",
+      description: "All action buttons have been removed from your content.",
+    });
+  };
+
+  const handleReorderActionButtons = (startIndex: number, endIndex: number) => {
+    const result = Array.from(actionButtons);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+    setActionButtons(result);
+  };
+
+  const handleMoveActionButtonUp = (buttonId: string) => {
+    const currentIndex = actionButtons.findIndex(
+      (button) => button.id === buttonId
+    );
+    if (currentIndex > 0) {
+      handleReorderActionButtons(currentIndex, currentIndex - 1);
+      toast({ title: "Action button moved up" });
+    }
+  };
+
+  const handleMoveActionButtonDown = (buttonId: string) => {
+    const currentIndex = actionButtons.findIndex(
+      (button) => button.id === buttonId
+    );
+    if (currentIndex < actionButtons.length - 1) {
+      handleReorderActionButtons(currentIndex, currentIndex + 1);
+      toast({ title: "Action button moved down" });
+    }
+  };
+
+  // Quick actions functions
+  const handleClearAllBlocks = () => {
+    blocks.forEach((block) => handleDeleteBlock(block.id));
+    toast({ title: "All content cleared" });
+  };
+
+  const handleClearEverything = () => {
+    blocks.forEach((block) => handleDeleteBlock(block.id));
+    handleClearAllActionButtons();
+    toast({ title: "Everything cleared" });
+  };
+
+  const handleExportJSON = () => {
+    const exportData = {
+      blocks: blocks,
+      actionButtons: actionButtons,
+      timestamp: new Date().toISOString(),
+    };
+    const content = JSON.stringify(exportData, null, 2);
+    navigator.clipboard.writeText(content);
+    toast({ title: "Content copied to clipboard" });
   };
 
   const handleSave = async (editorTitle: string, editorBlocks: AnyBlock[]) => {
@@ -379,6 +596,7 @@ export default function DistributionPage() {
   };
 
   const handlePublish = () => {
+    console.log("emailLists", emailLists);
     console.log("Publishing with blocks:", blocks);
     console.log("Publishing with title:", title);
 
@@ -409,6 +627,52 @@ export default function DistributionPage() {
       return;
     }
 
+    // Validate required fields before opening Publishing Hub
+    if (!title?.trim()) {
+      toast({
+        title: "Title required",
+        description: "Please enter a title before publishing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!category || category.length === 0) {
+      toast({
+        title: "Category required",
+        description: "Please select a category before publishing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!country || country.length === 0) {
+      toast({
+        title: "Country required",
+        description: "Please select a country before publishing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!type?.trim()) {
+      toast({
+        title: "Type required",
+        description: "Please select a type before publishing",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!articleImage) {
+      toast({
+        title: "Article image required",
+        description: "Please upload an article image before publishing",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Allow publishing without platforms (will go to Globalist.live only)
     // The Publishing Hub will handle platform selection if needed
 
@@ -423,10 +687,6 @@ export default function DistributionPage() {
       .join("");
 
     try {
-      // Get email list information from action buttons
-      const emailListInfo = getEmailListFromActionButtons();
-      console.log("Email list info from action buttons:", emailListInfo);
-
       // Create a FormData object to send the file and other data
       const formData = new FormData();
       formData.append("content", htmlContent);
@@ -437,38 +697,80 @@ export default function DistributionPage() {
       } else {
         formData.append("category[]", category); // If category is a single value, send it as an array
       }
-      // Append country as an array
+      // Append category as an array
       if (Array.isArray(country)) {
         country.forEach((cat) => formData.append("country[]", cat)); // Sending as an array
       } else {
-        formData.append("country[]", country); // If country is a single value, send it as an array
+        formData.append("country[]", country); // If category is a single value, send it as an array
       }
       formData.append("type", type);
       formData.append("author", session?.user?.email ?? "");
       formData.append("urlToImage", articleImage); // Assuming articleImage is a File object
 
-      // Determine if we have a valid email list
-      let hasValidEmailList = false;
-      if (emailListInfo?.emailListId) {
-        // Additional validation to prevent backend errors
-        const emailListId = emailListInfo.emailListId.trim();
-        if (emailListId && emailListId !== "none" && emailListId.length > 0) {
-          console.log("Adding email list data from action buttons:", {
-            emailListId: emailListId,
-          });
+      // Check if there are any Email Subscribe action buttons
+      const hasEmailSubscribeButton = actionButtons.some(
+        (button) => button.type === "email_subscribe"
+      );
 
-          formData.append("emailListId", emailListId);
-          hasValidEmailList = true;
-        } else {
-          console.log(
-            "Invalid email list ID detected, skipping email integration:",
-            emailListId
-          );
-        }
-      } else {
-        console.log(
-          "No email list found in action buttons, publishing without email integration"
+      // Add email list data only if there are Email Subscribe action buttons
+      if (hasEmailSubscribeButton) {
+        // Find the first Email Subscribe button with an email list
+        const emailSubscribeButton = actionButtons.find(
+          (button) =>
+            button.type === "email_subscribe" && button.config.emailListId
         );
+
+        if (
+          emailSubscribeButton &&
+          emailSubscribeButton.config.emailListId !== "clear"
+        ) {
+          const selectedList = emailLists.find(
+            (list) => list._id === emailSubscribeButton.config.emailListId
+          );
+
+          if (selectedList) {
+            console.log("Adding email list data from action button:", {
+              id: emailSubscribeButton.config.emailListId,
+              name: selectedList.name,
+              subscriberCount: selectedList.subscriberCount,
+            });
+
+            // Check if email list has subscribers
+            const subscriberEmails = selectedList.subscribers.map(
+              (sub) => sub.email
+            );
+
+            if (subscriberEmails.length === 0) {
+              toast({
+                title: "Empty Email List",
+                description: `The email list "${selectedList.name}" in your action button has no active subscribers. Please update the action button or add subscribers first.`,
+                variant: "destructive",
+              });
+              return;
+            }
+
+            formData.append(
+              "emailListId",
+              emailSubscribeButton.config.emailListId!
+            );
+          } else {
+            toast({
+              title: "Email List Not Found",
+              description:
+                "The email list in your action button could not be found. Please update the action button.",
+              variant: "destructive",
+            });
+            return;
+          }
+        } else {
+          toast({
+            title: "Email Subscribe Button Required",
+            description:
+              "You have Email Subscribe action buttons but no email list is selected. Please update your action buttons.",
+            variant: "destructive",
+          });
+          return;
+        }
       }
 
       // Make the POST request
@@ -484,9 +786,9 @@ export default function DistributionPage() {
         );
 
         if (response.status === 201) {
-          const successMessage = hasValidEmailList
-            ? `Article published successfully with email list integration`
-            : `Article published successfully`;
+          const successMessage = hasEmailSubscribeButton
+            ? `Article published successfully with email subscribe functionality`
+            : "Article published successfully";
 
           toast({
             title: "Success",
@@ -595,7 +897,7 @@ export default function DistributionPage() {
         }
       }
 
-      toast({ title: "Success", description });
+      // toast({ title: "Success", description });
 
       // Refresh calendar data if post was scheduled
       if (isScheduled) {
@@ -675,85 +977,551 @@ export default function DistributionPage() {
     }
   };
 
+  // Block types for sidebar
+  const blockTypes = [
+    {
+      type: "text" as const,
+      icon: Type,
+      label: "Text",
+      description: "Add a text block",
+    },
+    {
+      type: "heading" as const,
+      icon: Heading1,
+      label: "Heading",
+      description: "Add a heading",
+    },
+    {
+      type: "image" as const,
+      icon: ImageIcon,
+      label: "Image",
+      description: "Add an image",
+    },
+    {
+      type: "video" as const,
+      icon: Video,
+      label: "Video",
+      description: "Embed a video",
+    },
+    {
+      type: "audio" as const,
+      icon: Music,
+      label: "Audio",
+      description: "Add audio or music",
+    },
+    {
+      type: "embed" as const,
+      icon: Link2,
+      label: "Embed",
+      description: "Embed content",
+    },
+    {
+      type: "quote" as const,
+      icon: Quote,
+      label: "Quote",
+      description: "Add a quote",
+    },
+    {
+      type: "list" as const,
+      icon: List,
+      label: "List",
+      description: "Add a list",
+    },
+  ];
+
+  // Helper functions for sidebar
+  const getBlockIcon = (type: AnyBlock["type"]) => {
+    const iconMap: Record<AnyBlock["type"], any> = {
+      text: Type,
+      image: ImageIcon,
+      video: Video,
+      audio: Volume2,
+      embed: Link2,
+      heading: Heading1,
+      quote: Quote,
+      list: List,
+    };
+    return iconMap[type] || Type;
+  };
+
+  const getBlockLabel = (type: AnyBlock["type"]) => {
+    const labelMap: Record<AnyBlock["type"], string> = {
+      text: "Text",
+      heading: "Heading",
+      image: "Image",
+      video: "Video",
+      audio: "Audio",
+      embed: "Embed",
+      quote: "Quote",
+      list: "List",
+    };
+    return labelMap[type] || "Unknown";
+  };
+
+  const getBlockPreview = (block: AnyBlock) => {
+    switch (block.type) {
+      case "text":
+        const textContent = (block.content as any).text || "";
+        return textContent.length > 30
+          ? textContent.substring(0, 30) + "..."
+          : textContent || "Empty text block";
+      case "heading":
+        const headingContent = (block.content as any).text || "";
+        const level = (block.content as any).level || 1;
+        return `H${level}: ${
+          headingContent.length > 25
+            ? headingContent.substring(0, 25) + "..."
+            : headingContent || "Empty heading"
+        }`;
+      case "image":
+        const imageUrl = (block.content as any).url || "";
+        const imageAlt = (block.content as any).alt || "";
+        return imageUrl ? imageAlt || "Image" : "No image selected";
+      case "video":
+        const videoUrl = (block.content as any).url || "";
+        return videoUrl ? "Video embedded" : "No video URL";
+      case "audio":
+        const audioUrl = (block.content as any).url || "";
+        const audioTitle = (block.content as any).title || "";
+        const audioArtist = (block.content as any).artist || "";
+        if (audioUrl) {
+          if (audioTitle && audioArtist) {
+            return `${audioTitle} - ${audioArtist}`;
+          }
+          return audioTitle || "Audio embedded";
+        }
+        return "No audio URL";
+      case "embed":
+        const embedUrl = (block.content as any).url || "";
+        return embedUrl ? "Content embedded" : "No embed URL";
+      case "quote":
+        const quoteText = (block.content as any).text || "";
+        return quoteText.length > 30
+          ? quoteText.substring(0, 30) + "..."
+          : quoteText || "Empty quote";
+      case "list":
+        const items = (block.content as any).items || [];
+        const ordered = (block.content as any).ordered || false;
+        return `${ordered ? "Ordered" : "Unordered"} list (${
+          items.length
+        } items)`;
+      default:
+        return "Unknown block";
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-background w-full flex flex-col">
-      <div className="w-full px-4 md:px-8 py-6 flex-1 flex flex-col">
-        {/* Header */}
-        <div className="mb-6">
+    <div className="min-h-screen bg-background w-full flex relative">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        <div className="w-full px-4 md:px-8 py-6 flex-1 flex flex-col">
+          {/* Header */}
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+                  <Sparkles className="h-6 w-6 text-primary" />
+                  Distribution
+                </h1>
+                <p className="text-muted-foreground text-sm md:text-base">
+                  Create, edit, and distribute your content across platforms
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {isEditing && currentPostId && (
+                  <div className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                    Editing Post #{currentPostId.slice(-6)}
+                  </div>
+                )}
+                {isSaving && (
+                  <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full flex items-center gap-1">
+                    <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                    Saving...
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Platform Selector */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Publishing Platforms</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PlatformSelector
+                selectedPlatforms={selectedPlatforms}
+                onPlatformToggle={handlePlatformToggle}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Content Editor */}
+          <div className="w-full space-y-6">
+            <StreamlinedEditor
+              key={currentPostId || "new-post"} // Force re-mount when post changes
+              user={user}
+              platforms={selectedPlatforms}
+              title={title}
+              blocks={blocks}
+              actionButtons={actionButtons}
+              selectedBlockId={selectedBlockId}
+              onSave={handleSave}
+              onPreview={(title, blocks) => handlePreview(title, blocks)}
+              onPublish={handlePublish}
+              onContentChange={(
+                newTitle: string,
+                newBlocks: AnyBlock[],
+                category?: string[],
+                country?: string[],
+                type?: string,
+                imageBase64?: any
+              ) => {
+                setTitle(newTitle);
+                setBlocks(newBlocks);
+                setCategory(category || []);
+                setCountry(country || []);
+                setType(type || "");
+                setArticleImage(imageBase64);
+              }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Sidebar Content - Always Visible */}
+      <div className="w-80 bg-background border-l shadow-xl flex flex-col">
+        {/* Sidebar Header */}
+        <div className="p-4 border-b">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-                <Sparkles className="h-6 w-6 text-primary" />
-                Distribution
-              </h1>
-              <p className="text-muted-foreground text-sm md:text-base">
-                Create, edit, and distribute your content across platforms
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              {isEditing && currentPostId && (
-                <div className="text-sm text-muted-foreground bg-muted px-3 py-1 rounded-full">
-                  Editing Post #{currentPostId.slice(-6)}
-                </div>
-              )}
-              {isSaving && (
-                <div className="text-sm text-blue-600 bg-blue-50 px-3 py-1 rounded-full flex items-center gap-1">
-                  <div className="w-3 h-3 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-                  Saving...
-                </div>
-              )}
-            </div>
+            <h2 className="font-semibold text-sm">Tools</h2>
           </div>
         </div>
 
-        {/* Platform Selector */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Publishing Platforms</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <PlatformSelector
-              selectedPlatforms={selectedPlatforms}
-              onPlatformToggle={handlePlatformToggle}
-            />
-          </CardContent>
-        </Card>
+        {/* Sidebar Content */}
+        <ScrollArea className="flex-1">
+          <div className="p-4 space-y-6">
+            {/* Add Blocks Section */}
+            <div>
+              <h3 className="font-medium text-sm mb-3 text-muted-foreground uppercase tracking-wide">
+                Add Blocks
+              </h3>
+              <div className="grid grid-cols-4 gap-2">
+                {blockTypes.map(({ type, icon: Icon }) => (
+                  <Button
+                    key={type}
+                    variant="ghost"
+                    onClick={() => handleAddBlock(type)}
+                    className="w-full h-12 p-2 hover:bg-muted/50"
+                    title={type.charAt(0).toUpperCase() + type.slice(1)}
+                  >
+                    <Icon className="h-6 w-6 text-muted-foreground" />
+                  </Button>
+                ))}
+              </div>
+            </div>
 
-        {/* Content Editor */}
-        <div className="w-full space-y-6">
-          <StreamlinedEditor
-            key={currentPostId || "new-post"} // Force re-mount when post changes
-            user={user}
-            platforms={selectedPlatforms}
-            onSave={handleSave}
-            onPreview={(title, blocks) => handlePreview(title, blocks)}
-            onPublish={handlePublish}
-            onContentChange={(
-              newTitle: string,
-              newBlocks: AnyBlock[],
-              category?: string[],
-              country?: string[],
-              type?: string,
-              imageBase64?: any,
-              seoData?: {
-                headline: string;
-                keywords: string[];
-                metaDescription: string;
-              },
-              actionButtons?: ActionButton[]
-            ) => {
-              setTitle(newTitle);
-              setBlocks(newBlocks);
-              setCategory(category || []);
-              setCountry(country || []);
-              setType(type || "");
-              setArticleImage(imageBase64);
-              setActionButtons(actionButtons || []);
-            }}
-            initialTitle={title}
-            initialBlocks={blocks}
-          />
-        </div>
+            <Separator />
+
+            {/* Content Blocks Management */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Content Blocks ({blocks.length})
+                </h3>
+                {blocks.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearAllBlocks}
+                    className="text-xs text-destructive hover:text-destructive"
+                  >
+                    Clear All
+                  </Button>
+                )}
+              </div>
+
+              {blocks.length === 0 ? (
+                <div className="text-center py-4 text-muted-foreground">
+                  <div className="text-xs">No blocks added yet</div>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {blocks.map((block, index) => {
+                    const Icon = getBlockIcon(block.type);
+                    const isSelected = selectedBlockId === block.id;
+                    const isFirst = index === 0;
+                    const isLast = index === blocks.length - 1;
+
+                    return (
+                      <Card
+                        key={block.id}
+                        className={cn(
+                          "p-3 cursor-pointer transition-all hover:bg-muted/50",
+                          isSelected &&
+                            "ring-2 ring-primary ring-offset-1 bg-primary/5"
+                        )}
+                        onClick={() => handleSelectBlock(block.id)}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                            <GripVertical className="h-3 w-3 text-muted-foreground" />
+                            <Icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <Badge variant="secondary" className="text-xs">
+                                  {getBlockLabel(block.type)}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  #{index + 1}
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {getBlockPreview(block)}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            {/* Move Up Button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveBlockUp(block.id);
+                              }}
+                              disabled={isFirst}
+                              className="p-1 h-auto hover:bg-primary/20"
+                              title="Move up"
+                            >
+                              <ChevronUp className="h-3 w-3" />
+                            </Button>
+
+                            {/* Move Down Button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMoveBlockDown(block.id);
+                              }}
+                              disabled={isLast}
+                              className="p-1 h-auto hover:bg-primary/20"
+                              title="Move down"
+                            >
+                              <ChevronDown className="h-3 w-3" />
+                            </Button>
+
+                            {/* Select Button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectBlock(block.id);
+                              }}
+                              className="p-1 h-auto hover:bg-primary/20"
+                              title="Select block"
+                            >
+                              {isSelected ? (
+                                <Eye className="h-3 w-3" />
+                              ) : (
+                                <EyeOff className="h-3 w-3" />
+                              )}
+                            </Button>
+
+                            {/* Delete Button */}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteBlock(block.id);
+                              }}
+                              className="p-1 h-auto hover:bg-destructive hover:text-destructive-foreground"
+                              title="Delete block"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Action Buttons Section */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                  Action Buttons ({actionButtons.length})
+                </h3>
+                {actionButtons.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleClearAllActionButtons}
+                    className="text-xs text-destructive hover:text-destructive"
+                  >
+                    Clear All
+                  </Button>
+                )}
+              </div>
+
+              {/* Action Buttons Component */}
+              <ActionButtons
+                buttons={actionButtons}
+                onButtonsChange={setActionButtons}
+                emailLists={emailLists.map((list) => ({
+                  _id: list._id,
+                  name: list.name,
+                  subscriberCount: list.subscriberCount,
+                  tags: list.tags,
+                  description: list.description,
+                  createdAt: list.createdAt.toString(),
+                }))}
+                isLoadingEmailLists={isLoadingEmailLists}
+                validationData={{
+                  title,
+                  category,
+                  country,
+                  type,
+                  articleImage,
+                  blocks,
+                }}
+              />
+
+              {/* Action Buttons List with Management Controls */}
+              {actionButtons.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  <h4 className="text-xs font-medium text-muted-foreground">
+                    Current Buttons:
+                  </h4>
+                  <div className="space-y-1 max-h-32 overflow-y-auto">
+                    {actionButtons.map((button, index) => {
+                      const isFirst = index === 0;
+                      const isLast = index === actionButtons.length - 1;
+
+                      return (
+                        <Card key={button.id} className="p-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <GripVertical className="h-3 w-3 text-muted-foreground" />
+                              <Badge variant="outline" className="text-xs">
+                                {button.type.replace("_", " ")}
+                              </Badge>
+                              <span className="text-xs truncate">
+                                {button.label}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1">
+                              {/* Move Up Button */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleMoveActionButtonUp(button.id)
+                                }
+                                disabled={isFirst}
+                                className="p-1 h-auto hover:bg-primary/20"
+                                title="Move up"
+                              >
+                                <ChevronUp className="h-3 w-3" />
+                              </Button>
+
+                              {/* Move Down Button */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleMoveActionButtonDown(button.id)
+                                }
+                                disabled={isLast}
+                                className="p-1 h-auto hover:bg-primary/20"
+                                title="Move down"
+                              >
+                                <ChevronDown className="h-3 w-3" />
+                              </Button>
+
+                              {/* Remove Button */}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  handleRemoveActionButton(button.id)
+                                }
+                                className="p-1 h-auto hover:bg-destructive hover:text-destructive-foreground"
+                                title="Remove button"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Separator />
+
+            {/* Quick Actions Section */}
+            <div>
+              <h3 className="font-medium text-sm mb-3 text-muted-foreground uppercase tracking-wide">
+                Quick Actions
+              </h3>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearAllBlocks}
+                  className="w-full justify-start"
+                  disabled={blocks.length === 0}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear All Blocks
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearAllActionButtons}
+                  className="w-full justify-start"
+                  disabled={actionButtons.length === 0}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear Action Buttons
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleClearEverything}
+                  className="w-full justify-start"
+                  disabled={blocks.length === 0 && actionButtons.length === 0}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Clear Everything
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleExportJSON}
+                  className="w-full justify-start"
+                  disabled={blocks.length === 0 && actionButtons.length === 0}
+                >
+                  Export JSON
+                </Button>
+              </div>
+            </div>
+          </div>
+        </ScrollArea>
       </div>
 
       <UpgradeModal

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DndContext,
   closestCenter,
@@ -19,33 +19,30 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ActionButtonBlock } from "./blocks/ActionButtonBlock";
 import { FullscreenToggle } from "./FullscreenToggle";
-import { EditorSidebar } from "./EditorSidebar";
 import { useBlockManager } from "./hooks/useBlockManager";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { AnyBlock, ActionButton } from "@/types/editor";
 import { AIAssistantModal } from "./AIAssistantModal";
 import { SortableBlock } from "./SortableBlock";
 
 interface EditorCanvasProps {
   initialBlocks?: AnyBlock[];
-  onContentChange?: (
-    blocks: AnyBlock[],
-    actionButtons?: ActionButton[]
-  ) => void;
+  onContentChange?: (blocks: AnyBlock[]) => void;
   className?: string;
+  actionButtons?: ActionButton[];
+  selectedBlockId?: string | null;
 }
 
 export function EditorCanvas({
   initialBlocks = [],
   onContentChange,
   className,
+  actionButtons = [],
+  selectedBlockId = null,
 }: EditorCanvasProps) {
   const { toast } = useToast();
-  const [actionButtons, setActionButtons] = useState<ActionButton[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // State for AI improvement modal
   const [improveModalOpen, setImproveModalOpen] = useState(false);
@@ -60,6 +57,13 @@ export function EditorCanvas({
     selectBlock,
     toggleFullscreen,
   } = useBlockManager({ initialBlocks, onContentChange });
+
+  // Synchronize selectedBlockId prop with editorState
+  useEffect(() => {
+    if (selectedBlockId !== editorState.selectedBlockId) {
+      selectBlock(selectedBlockId);
+    }
+  }, [selectedBlockId, editorState.selectedBlockId, selectBlock]);
 
   // Multi-select state
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
@@ -121,69 +125,6 @@ export function EditorCanvas({
       if (oldIndex !== -1 && newIndex !== -1) {
         reorderBlocks(oldIndex, newIndex);
       }
-    }
-  };
-
-  const handleRemoveActionButton = (buttonId: string) => {
-    setActionButtons((prev) => prev.filter((btn) => btn.id !== buttonId));
-    toast({
-      title: "Action button removed",
-      description: "The action button has been removed from your content.",
-    });
-  };
-
-  const handleClearAllActionButtons = () => {
-    setActionButtons([]);
-    toast({
-      title: "All action buttons cleared",
-      description: "All action buttons have been removed from your content.",
-    });
-  };
-
-  const handleReorderActionButtons = (startIndex: number, endIndex: number) => {
-    const result = Array.from(actionButtons);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    setActionButtons(result);
-  };
-
-  const handleMoveBlockUp = (blockId: string) => {
-    const currentIndex = editorState.blocks.findIndex(
-      (block) => block.id === blockId
-    );
-    if (currentIndex > 0) {
-      reorderBlocks(currentIndex, currentIndex - 1);
-      toast({ title: "Block moved up" });
-    }
-  };
-
-  const handleMoveBlockDown = (blockId: string) => {
-    const currentIndex = editorState.blocks.findIndex(
-      (block) => block.id === blockId
-    );
-    if (currentIndex < editorState.blocks.length - 1) {
-      reorderBlocks(currentIndex, currentIndex + 1);
-      toast({ title: "Block moved down" });
-    }
-  };
-
-  const handleMoveActionButtonUp = (buttonId: string) => {
-    const currentIndex = actionButtons.findIndex(
-      (button) => button.id === buttonId
-    );
-    if (currentIndex > 0) {
-      handleReorderActionButtons(currentIndex, currentIndex - 1);
-      toast({ title: "Action button moved up" });
-    }
-  };
-
-  const handleMoveActionButtonDown = (buttonId: string) => {
-    const currentIndex = actionButtons.findIndex(
-      (button) => button.id === buttonId
-    );
-    if (currentIndex < actionButtons.length - 1) {
-      handleReorderActionButtons(currentIndex, currentIndex + 1);
-      toast({ title: "Action button moved down" });
     }
   };
 
@@ -292,20 +233,6 @@ export function EditorCanvas({
               </h1>
             </div>
             <div className="flex items-center gap-2">
-              {!editorState.isFullscreen && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="p-2 hover:bg-muted"
-                >
-                  {sidebarOpen ? (
-                    <PanelRightClose className="h-4 w-4" />
-                  ) : (
-                    <PanelRightOpen className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
               <FullscreenToggle
                 isFullscreen={editorState.isFullscreen}
                 onToggle={toggleFullscreen}
@@ -367,52 +294,6 @@ export function EditorCanvas({
           </div>
         </div>
       </div>
-
-      {/* Sidebar - Overlay that doesn't affect main content */}
-      {!editorState.isFullscreen && (
-        <>
-          {/* Backdrop */}
-          <AnimatePresence>
-            {sidebarOpen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black/20 z-30 lg:hidden"
-                onClick={() => setSidebarOpen(false)}
-              />
-            )}
-          </AnimatePresence>
-
-          {/* Sidebar */}
-          <motion.div
-            className="fixed top-0 right-0 h-full z-40 w-80 bg-background border-l shadow-xl"
-            initial={false}
-            animate={{
-              x: sidebarOpen ? 0 : 320,
-            }}
-            transition={{ duration: 0.3, ease: "easeInOut" }}
-          >
-            <EditorSidebar
-              isOpen={sidebarOpen}
-              onClose={() => setSidebarOpen(false)}
-              editorState={editorState}
-              actionButtons={actionButtons}
-              onActionButtonsChange={setActionButtons}
-              onAddBlock={addBlock}
-              onDeleteBlock={deleteBlock}
-              onSelectBlock={selectBlock}
-              onRemoveActionButton={handleRemoveActionButton}
-              onClearAllActionButtons={handleClearAllActionButtons}
-              onReorderActionButtons={handleReorderActionButtons}
-              onMoveBlockUp={handleMoveBlockUp}
-              onMoveBlockDown={handleMoveBlockDown}
-              onMoveActionButtonUp={handleMoveActionButtonUp}
-              onMoveActionButtonDown={handleMoveActionButtonDown}
-            />
-          </motion.div>
-        </>
-      )}
 
       {/* Floating Bulk Improve with AI Button */}
       {selectedTextBlocks.length > 1 && (
@@ -498,7 +379,7 @@ export function EditorCanvas({
                   }));
                 }
 
-                onContentChange(newBlocks, actionButtons);
+                onContentChange(newBlocks);
                 toast({
                   title:
                     blockToImprove.id === "bulk"

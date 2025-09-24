@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Mail, Heart, Coffee, DollarSign, ExternalLink, X } from "lucide-react";
+import { Mail, Heart, ExternalLink, X } from "lucide-react";
 import type { ActionButton } from "@/types/editor";
 
 interface ActionButtonBlockProps {
@@ -21,10 +21,8 @@ export function ActionButtonBlock({
         return <Mail className="h-4 w-4" />;
       case "donation":
         return <Heart className="h-4 w-4" />;
-      case "tip_jar":
-        return <Coffee className="h-4 w-4" />;
       default:
-        return <DollarSign className="h-4 w-4" />;
+        return <Mail className="h-4 w-4" />;
     }
   };
 
@@ -34,10 +32,8 @@ export function ActionButtonBlock({
         return "bg-blue-600 hover:bg-blue-700 text-white";
       case "donation":
         return "bg-red-600 hover:bg-red-700 text-white";
-      case "tip_jar":
-        return "bg-yellow-600 hover:bg-yellow-700 text-white";
       default:
-        return "bg-gray-600 hover:bg-gray-700 text-white";
+        return "bg-blue-600 hover:bg-blue-700 text-white";
     }
   };
 
