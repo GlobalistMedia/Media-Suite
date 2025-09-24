@@ -126,10 +126,9 @@ export interface EditorState {
 
 export interface ActionButton {
   id: string;
-  type: "email_subscribe" | "donation" | "tip_jar" | "custom";
+  type: "email_subscribe" | "donation";
   label: string;
   config: {
-    service?: "mailchimp" | "buttondown" | "convertkit";
     url?: string;
     amount?: number;
     currency?: string;
