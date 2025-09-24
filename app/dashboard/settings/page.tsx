@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { NotificationSettings } from "@/components/settings/NotificationSettings";
+// import { NotificationSettings } from "@/components/settings/NotificationSettings";
 import { PlatformIntegrations } from "@/components/settings/PlatformIntegrations";
 import { EmailListManager } from "@/components/settings/EmailListManager";
 // import { PrivacySettings } from "@/components/settings/PrivacySettings";
@@ -31,14 +31,14 @@ export default function SettingsPage() {
       </div>
 
       <Tabs defaultValue="notifications" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto p-1">
-          <TabsTrigger
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 h-auto p-1">
+          {/* <TabsTrigger
             value="notifications"
             className="flex items-center gap-2 py-2"
           >
             <Bell className="h-4 w-4" />
             <span className="hidden sm:inline">Notifications</span>
-          </TabsTrigger>
+          </TabsTrigger> */}
           <TabsTrigger
             value="integrations"
             className="flex items-center gap-2 py-2"
@@ -60,9 +60,9 @@ export default function SettingsPage() {
           </TabsTrigger> */}
         </TabsList>
 
-        <TabsContent value="notifications" className="space-y-6">
+        {/* <TabsContent value="notifications" className="space-y-6">
           <NotificationSettings />
-        </TabsContent>
+        </TabsContent> */}
 
         <TabsContent value="integrations" className="space-y-6">
           <PlatformIntegrations />
