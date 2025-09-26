@@ -92,6 +92,7 @@ export default function DistributionPage() {
   const [articleImage, setArticleImage] = useState(null as any | null);
   const [category, setCategory] = useState<string[]>([]);
   const [country, setCountry] = useState<string[]>([]);
+  const [accessType, setAccessType] = useState<string>("free");
   const [selectedPlatforms, setSelectedPlatforms] = useState<number[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -673,6 +674,16 @@ export default function DistributionPage() {
       return;
     }
 
+    if (!accessType?.trim()) {
+      toast({
+        title: "Access type required",
+        description:
+          "Please select an access type (Free, General, Exclusive) before publishing",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Allow publishing without platforms (will go to Globalist.live only)
     // The Publishing Hub will handle platform selection if needed
 
@@ -704,6 +715,7 @@ export default function DistributionPage() {
         formData.append("country[]", country); // If category is a single value, send it as an array
       }
       formData.append("type", type);
+      formData.append("accessType", accessType);
       formData.append("author", session?.user?.email ?? "");
       formData.append("urlToImage", articleImage); // Assuming articleImage is a File object
 
@@ -837,6 +849,7 @@ export default function DistributionPage() {
         category,
         country,
         type,
+        accessType,
         articleImage,
         status: isScheduled ? ("scheduled" as const) : ("published" as const),
         platforms: selectedPlatforms
@@ -1175,7 +1188,8 @@ export default function DistributionPage() {
                 category?: string[],
                 country?: string[],
                 type?: string,
-                imageBase64?: any
+                imageBase64?: any,
+                accessType?: string
               ) => {
                 setTitle(newTitle);
                 setBlocks(newBlocks);
@@ -1183,6 +1197,7 @@ export default function DistributionPage() {
                 setCountry(country || []);
                 setType(type || "");
                 setArticleImage(imageBase64);
+                setAccessType(accessType || "");
               }}
             />
           </div>
@@ -1391,6 +1406,7 @@ export default function DistributionPage() {
                   category,
                   country,
                   type,
+                  accessType,
                   articleImage,
                   blocks,
                 }}

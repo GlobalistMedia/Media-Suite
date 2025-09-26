@@ -47,6 +47,7 @@ interface StreamlinedEditorProps {
     country: string[],
     type: string,
     imageBase64: string | null,
+    accessType: string,
     seoData?: {
       headline: string;
       keywords: string[];
@@ -83,6 +84,7 @@ export function StreamlinedEditor({
   >([]); // Categories state
   const [selectedCountry, setSelectedCountry] = useState<string>(""); // Selected country
   const [selectedCategory, setSelectedCategory] = useState<string[]>([]);
+  const [accessType, setAccessType] = useState<string>(""); // Access type state
   const [imagePreview, setImagePreview] = useState<string | null>(null); // Image preview state
   const [imageBase64, setImageBase64] = useState<any | null>(null as any); // Image base64 string state
 
@@ -149,6 +151,7 @@ export function StreamlinedEditor({
         [selectedCountry],
         type,
         imageBase64,
+        accessType,
         {
           headline: seoHeadline,
           keywords: seoKeywords,
@@ -165,6 +168,7 @@ export function StreamlinedEditor({
     selectedCountry,
     type,
     imageBase64,
+    accessType,
     seoHeadline,
     seoKeywords,
     seoMetaDescription,
@@ -374,6 +378,7 @@ export function StreamlinedEditor({
                       [selectedCountry],
                       type,
                       imageBase64,
+                      accessType,
                       {
                         headline: seoHeadline,
                         keywords: seoKeywords,
@@ -408,7 +413,7 @@ export function StreamlinedEditor({
           </Card>
 
           {/* Editor Canvas */}
-          <Card className="p-4 sm:p-6 min-h-[400px] w-full mb-6">
+          <Card className="p-4 sm:p-6 min-h-[300px] w-full mb-6">
             <EditorCanvas
               initialBlocks={blocks}
               actionButtons={actionButtons}
@@ -422,6 +427,7 @@ export function StreamlinedEditor({
                     [selectedCountry],
                     type,
                     imageBase64,
+                    accessType,
                     {
                       headline: seoHeadline,
                       keywords: seoKeywords,
@@ -436,74 +442,89 @@ export function StreamlinedEditor({
 
           {platforms.length === 0 && (
             <>
-              {/* Type Dropdown */}
-              <Card className="mb-6 p-4 sm:p-6">
-                <CardHeader>
-                  <CardTitle className="text-lg">Select Type</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Select value={type} onValueChange={setType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a Type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem key={"Blog"} value={"blog"}>
-                        Blog
-                      </SelectItem>
-                      <SelectItem key={"News"} value={"news"}>
-                        News
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
+              {/* Form Fields - Compact Grid Layout */}
+              <Card className="mb-6 p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Type Dropdown */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Type
+                    </label>
+                    <Select value={type} onValueChange={setType}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Choose Type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="blog">Blog</SelectItem>
+                        <SelectItem value="news">News</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              {/* Country Dropdown */}
-              <Card className="mb-6 p-4 sm:p-6">
-                <CardHeader>
-                  <CardTitle className="text-lg">Select Country</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Select
-                    value={selectedCountry}
-                    onValueChange={setSelectedCountry}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a Country" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {countries.map((country) => (
-                        <SelectItem key={country.value} value={country.value}>
-                          {country.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </CardContent>
-              </Card>
+                  {/* Country Dropdown */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Country
+                    </label>
+                    <Select
+                      value={selectedCountry}
+                      onValueChange={setSelectedCountry}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Choose Country" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {countries.map((country) => (
+                          <SelectItem key={country.value} value={country.value}>
+                            {country.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-              {/* Category Dropdown */}
-              <Card className="mb-6  p-4 sm:p-6">
-                <CardHeader>
-                  <CardTitle className="text-lg">Select Category</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Select
-                    value={selectedCategory[0] || ""}
-                    onValueChange={(value) => handleCategoryChange(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.value} value={category.value}>
-                          {category.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </CardContent>
+                  {/* Category Dropdown */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Category
+                    </label>
+                    <Select
+                      value={selectedCategory[0] || ""}
+                      onValueChange={(value) => handleCategoryChange(value)}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Choose Category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem
+                            key={category.value}
+                            value={category.value}
+                          >
+                            {category.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Access Type Dropdown */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-muted-foreground">
+                      Access Type
+                    </label>
+                    <Select value={accessType} onValueChange={setAccessType}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Choose Access" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="free">Free</SelectItem>
+                        <SelectItem value="general">General</SelectItem>
+                        <SelectItem value="exclusive">Exclusive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </Card>
 
               {/* Image Uploader */}
@@ -644,6 +665,7 @@ export function StreamlinedEditor({
               [selectedCountry],
               type,
               imageBase64,
+              accessType,
               {
                 headline: seoHeadline,
                 keywords: seoKeywords,
