@@ -211,12 +211,7 @@ export function EditorCanvas({
   }
 
   return (
-    <div
-      className={cn(
-        "flex flex-col h-screen overflow-x-hidden relative",
-        className
-      )}
-    >
+    <div className={cn("flex flex-col overflow-x-hidden relative", className)}>
       {/* Main Editor Area - Fixed position, no padding changes */}
       <div
         className={cn(
@@ -242,7 +237,7 @@ export function EditorCanvas({
         </div>
 
         {/* Content Area - Always in the same position */}
-        <div className="flex-1 w-full overflow-y-auto pt-[128px] pb-24">
+        <div className="flex-1 w-full overflow-y-auto">
           {" "}
           {/* Increased top padding to prevent overlap */}
           <div className="p-4 max-w-4xl mx-auto space-y-4 w-full relative">

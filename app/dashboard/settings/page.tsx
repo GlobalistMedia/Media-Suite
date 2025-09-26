@@ -30,7 +30,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <Tabs defaultValue="notifications" className="space-y-6">
+      <Tabs defaultValue="integrations" className="space-y-6">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 h-auto p-1">
           {/* <TabsTrigger
             value="notifications"

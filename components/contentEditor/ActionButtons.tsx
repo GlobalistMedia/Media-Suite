@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -17,22 +17,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Plus,
-  Mail,
-  DollarSign,
-  Coffee,
-  Heart,
-  Settings,
-  Trash2,
-  Copy,
-} from "lucide-react";
+import { Plus, Mail, Heart, Settings, Trash2 } from "lucide-react";
 import type { ActionButton } from "@/types/editor";
 
 interface ActionButtonsProps {
@@ -52,6 +42,7 @@ interface ActionButtonsProps {
     category: string[];
     country: string[];
     type: string;
+    accessType: string;
     articleImage: File | null;
     blocks: any[];
   };
@@ -71,7 +62,7 @@ export function ActionButtons({
   const validateBeforeOpeningModal = () => {
     if (!validationData) return true; // Skip validation if no data provided
 
-    const { title, category, country, type, articleImage, blocks } =
+    const { title, category, country, type, accessType, articleImage, blocks } =
       validationData;
 
     if (!title?.trim()) {
@@ -105,6 +96,16 @@ export function ActionButtons({
       toast({
         title: "Missing Type",
         description: "Please select a type before adding action buttons.",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    if (!accessType?.trim()) {
+      toast({
+        title: "Missing Access Type",
+        description:
+          "Please select an access type before adding action buttons.",
         variant: "destructive",
       });
       return false;
@@ -169,19 +170,6 @@ export function ActionButtons({
     });
   };
 
-  const duplicateButton = (button: ActionButton) => {
-    const duplicated = {
-      ...button,
-      id: `${button.id}-copy-${Date.now()}`,
-      label: `${button.label} (Copy)`,
-    };
-    onButtonsChange([...buttons, duplicated]);
-    toast({
-      title: "Action button duplicated",
-      description: `${duplicated.label} has been added.`,
-    });
-  };
-
   const getButtonIcon = (type: ActionButton["type"]) => {
     switch (type) {
       case "email_subscribe":
@@ -208,12 +196,10 @@ export function ActionButtons({
     <div className="space-y-4">
       {/* Add Button */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogTrigger asChild>
-          <Button size="sm" className="w-full" onClick={handleOpenModal}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Action Button
-          </Button>
-        </DialogTrigger>
+        <Button size="sm" className="w-full" onClick={handleOpenModal}>
+          <Plus className="h-4 w-4 mr-2" />
+          Add Action Button
+        </Button>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>
@@ -282,14 +268,6 @@ export function ActionButtons({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => duplicateButton(button)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Copy className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
                           onClick={() => removeButton(button.id)}
                           className="h-8 w-8 p-0 text-destructive hover:text-destructive"
                         >
@@ -335,25 +313,53 @@ function ActionButtonForm({
   }>;
   isLoadingEmailLists?: boolean;
 }) {
+  const { toast } = useToast();
   const [formData, setFormData] = useState<ActionButton>({
     id: button?.id || `action-${Date.now()}`,
     type: button?.type || "email_subscribe",
-    label: button?.label || "",
+    label: button?.label || "Subscribe to Newsletter",
     config: button?.config || {},
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.label.trim()) {
-      return;
+
+    // Validate email list selection for email_subscribe type
+    if (formData.type === "email_subscribe") {
+      if (
+        !formData.config.emailListId ||
+        formData.config.emailListId === "clear"
+      ) {
+        toast({
+          title: "Email List Required",
+          description:
+            "Please select an email list for the Email Subscribe button.",
+          variant: "destructive",
+        });
+        return;
+      }
     }
+
     onSave(formData);
   };
 
   const updateConfig = (key: string, value: any) => {
+    console.log(value);
+
     setFormData((prev) => ({
       ...prev,
       config: { ...prev.config, [key]: value },
+    }));
+  };
+
+  // Update label when type changes
+  const handleTypeChange = (value: string) => {
+    const defaultLabel =
+      value === "email_subscribe" ? "Subscribe to Newsletter" : "Donate Now";
+    setFormData((prev) => ({
+      ...prev,
+      type: value as ActionButton["type"],
+      label: defaultLabel,
     }));
   };
 
@@ -363,7 +369,7 @@ function ActionButtonForm({
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="emailList">Email List</Label>
+              <Label htmlFor="emailList">Email List *</Label>
               {isLoadingEmailLists ? (
                 <div className="text-center py-4">
                   <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -381,21 +387,12 @@ function ActionButtonForm({
                 <Select
                   value={formData.config.emailListId || ""}
                   onValueChange={(value) => updateConfig("emailListId", value)}
+                  required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select email list" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="clear">
-                      <div className="flex items-center justify-between w-full">
-                        <span className="font-medium text-muted-foreground">
-                          Clear selection
-                        </span>
-                        <span className="text-sm text-muted-foreground ml-2">
-                          (No email list)
-                        </span>
-                      </div>
-                    </SelectItem>
                     {emailLists.map((list) => (
                       <SelectItem key={list._id} value={list._id}>
                         <div className="flex items-center justify-between w-full">
@@ -438,12 +435,7 @@ function ActionButtonForm({
       <div className="space-y-4">
         <div>
           <Label htmlFor="type">Button Type</Label>
-          <Select
-            value={formData.type}
-            onValueChange={(value: any) =>
-              setFormData((prev) => ({ ...prev, type: value }))
-            }
-          >
+          <Select value={formData.type} onValueChange={handleTypeChange}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -452,19 +444,6 @@ function ActionButtonForm({
               <SelectItem value="donation">Donation</SelectItem>
             </SelectContent>
           </Select>
-        </div>
-
-        <div>
-          <Label htmlFor="label">Button Label</Label>
-          <Input
-            id="label"
-            value={formData.label}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, label: e.target.value }))
-            }
-            placeholder="Subscribe to Newsletter"
-            required
-          />
         </div>
 
         <Separator />
