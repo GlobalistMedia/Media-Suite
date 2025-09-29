@@ -134,5 +134,6 @@ export interface ActionButton {
     currency?: string;
     style?: "button" | "widget";
     emailListId?: string;
+    donationType?: string;
   };
 }

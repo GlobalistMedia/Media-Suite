@@ -92,7 +92,7 @@ export default function DistributionPage() {
   const [articleImage, setArticleImage] = useState(null as any | null);
   const [category, setCategory] = useState<string[]>([]);
   const [country, setCountry] = useState<string[]>([]);
-  const [accessType, setAccessType] = useState<string>("free");
+  const [accessType, setAccessType] = useState<string>("");
   const [selectedPlatforms, setSelectedPlatforms] = useState<number[]>([]);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -342,10 +342,6 @@ export default function DistributionPage() {
       order: blocks.length,
     };
     setBlocks((prev) => [...prev, newBlock]);
-    toast({
-      title: "Block added",
-      description: `Added a new ${type} block`,
-    });
   };
 
   const getDefaultBlockContent = (type: AnyBlock["type"]): any => {
@@ -415,18 +411,10 @@ export default function DistributionPage() {
   // Action button management functions
   const handleRemoveActionButton = (buttonId: string) => {
     setActionButtons((prev) => prev.filter((btn) => btn.id !== buttonId));
-    toast({
-      title: "Action button removed",
-      description: "The action button has been removed from your content.",
-    });
   };
 
   const handleClearAllActionButtons = () => {
     setActionButtons([]);
-    toast({
-      title: "All action buttons cleared",
-      description: "All action buttons have been removed from your content.",
-    });
   };
 
   const handleReorderActionButtons = (startIndex: number, endIndex: number) => {
@@ -442,7 +430,6 @@ export default function DistributionPage() {
     );
     if (currentIndex > 0) {
       handleReorderActionButtons(currentIndex, currentIndex - 1);
-      toast({ title: "Action button moved up" });
     }
   };
 
@@ -452,7 +439,6 @@ export default function DistributionPage() {
     );
     if (currentIndex < actionButtons.length - 1) {
       handleReorderActionButtons(currentIndex, currentIndex + 1);
-      toast({ title: "Action button moved down" });
     }
   };
 
@@ -674,16 +660,6 @@ export default function DistributionPage() {
       return;
     }
 
-    if (!accessType?.trim()) {
-      toast({
-        title: "Access type required",
-        description:
-          "Please select an access type (Free, General, Exclusive) before publishing",
-        variant: "destructive",
-      });
-      return;
-    }
-
     // Allow publishing without platforms (will go to Globalist.live only)
     // The Publishing Hub will handle platform selection if needed
 
@@ -715,7 +691,6 @@ export default function DistributionPage() {
         formData.append("country[]", country); // If category is a single value, send it as an array
       }
       formData.append("type", type);
-      formData.append("accessType", accessType);
       formData.append("author", session?.user?.email ?? "");
       formData.append("urlToImage", articleImage); // Assuming articleImage is a File object
 
@@ -779,6 +754,36 @@ export default function DistributionPage() {
             title: "Email Subscribe Button Required",
             description:
               "You have Email Subscribe action buttons but no email list is selected. Please update your action buttons.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Check if there are any donation action buttons
+      const hasDonationButton = actionButtons.some(
+        (button) => button.type === "donation"
+      );
+
+      // Add donation type data only if there are donation action buttons
+      if (hasDonationButton) {
+        const donationButton = actionButtons.find(
+          (button) => button.type === "donation" && button.config.donationType
+        );
+
+        if (donationButton && donationButton.config.donationType) {
+          console.log("Adding donation type data from action button:", {
+            type: donationButton.config.donationType,
+            label: donationButton.label,
+          });
+
+          formData.append("accessType", donationButton.config.donationType);
+          console.log("accessType", donationButton.config.donationType);
+        } else {
+          toast({
+            title: "Donation Button Required",
+            description:
+              "You have donation action buttons but no donation type is selected. Please update your action buttons.",
             variant: "destructive",
           });
           return;
@@ -849,7 +854,6 @@ export default function DistributionPage() {
         category,
         country,
         type,
-        accessType,
         articleImage,
         status: isScheduled ? ("scheduled" as const) : ("published" as const),
         platforms: selectedPlatforms
@@ -1401,15 +1405,6 @@ export default function DistributionPage() {
                   createdAt: list.createdAt.toString(),
                 }))}
                 isLoadingEmailLists={isLoadingEmailLists}
-                validationData={{
-                  title,
-                  category,
-                  country,
-                  type,
-                  accessType,
-                  articleImage,
-                  blocks,
-                }}
               />
 
               {/* Action Buttons List with Management Controls */}
@@ -1428,9 +1423,6 @@ export default function DistributionPage() {
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                               <GripVertical className="h-3 w-3 text-muted-foreground" />
-                              <Badge variant="outline" className="text-xs">
-                                {button.type.replace("_", " ")}
-                              </Badge>
                               <span className="text-xs truncate">
                                 {button.label}
                               </span>

@@ -84,7 +84,7 @@ export function StreamlinedEditor({
   >([]); // Categories state
   const [selectedCountry, setSelectedCountry] = useState<string>(""); // Selected country
   const [selectedCategory, setSelectedCategory] = useState<string[]>([]);
-  const [accessType, setAccessType] = useState<string>(""); // Access type state
+  const [accessType, setAccessType] = useState<string>("");
   const [imagePreview, setImagePreview] = useState<string | null>(null); // Image preview state
   const [imageBase64, setImageBase64] = useState<any | null>(null as any); // Image base64 string state
 
@@ -391,29 +391,28 @@ export function StreamlinedEditor({
               />
               {actionButtons.length > 0 && (
                 <div className="flex gap-2">
-                  {actionButtons.map((button) => (
-                    <Button
-                      key={button.id}
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2"
-                    >
-                      {button.type === "email_subscribe" && (
-                        <Mail className="h-4 w-4" />
-                      )}
-                      {button.type === "donation" && (
-                        <Heart className="h-4 w-4" />
-                      )}
-                      {button.label}
-                    </Button>
-                  ))}
+                  {actionButtons
+                    .filter((button) => button.type === "email_subscribe")
+                    .map((button) => (
+                      <Button
+                        key={button.id}
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-2"
+                      >
+                        {button.type === "email_subscribe" && (
+                          <Mail className="h-4 w-4" />
+                        )}
+                        {button.label}
+                      </Button>
+                    ))}
                 </div>
               )}
             </div>
           </Card>
 
           {/* Editor Canvas */}
-          <Card className="p-4 sm:p-6 min-h-[300px] w-full mb-6">
+          <Card className="p-4 sm:p-6 min-h-[300px] w-full">
             <EditorCanvas
               initialBlocks={blocks}
               actionButtons={actionButtons}
@@ -440,11 +439,27 @@ export function StreamlinedEditor({
             />
           </Card>
 
+          <div className="flex justify-center my-2">
+            {actionButtons
+              .filter((button) => button.type === "donation")
+              .map((button) => (
+                <Button
+                  key={button.id}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  {button.type === "donation" && <Heart className="h-4 w-4" />}
+                  {button.label}
+                </Button>
+              ))}
+          </div>
+
           {platforms.length === 0 && (
             <>
               {/* Form Fields - Compact Grid Layout */}
               <Card className="mb-6 p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Type Dropdown */}
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-muted-foreground">
@@ -504,23 +519,6 @@ export function StreamlinedEditor({
                             {category.label}
                           </SelectItem>
                         ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Access Type Dropdown */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground">
-                      Access Type
-                    </label>
-                    <Select value={accessType} onValueChange={setAccessType}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Choose Access" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="free">Free</SelectItem>
-                        <SelectItem value="general">General</SelectItem>
-                        <SelectItem value="exclusive">Exclusive</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
