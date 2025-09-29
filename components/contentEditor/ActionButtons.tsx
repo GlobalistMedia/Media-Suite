@@ -18,7 +18,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
@@ -37,15 +36,6 @@ interface ActionButtonsProps {
     createdAt: string;
   }>;
   isLoadingEmailLists?: boolean;
-  validationData?: {
-    title: string;
-    category: string[];
-    country: string[];
-    type: string;
-    accessType: string;
-    articleImage: File | null;
-    blocks: any[];
-  };
 }
 
 export function ActionButtons({
@@ -53,101 +43,26 @@ export function ActionButtons({
   onButtonsChange,
   emailLists = [],
   isLoadingEmailLists = false,
-  validationData,
 }: ActionButtonsProps) {
-  const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingButton, setEditingButton] = useState<ActionButton | null>(null);
 
-  const validateBeforeOpeningModal = () => {
-    if (!validationData) return true; // Skip validation if no data provided
-
-    const { title, category, country, type, accessType, articleImage, blocks } =
-      validationData;
-
-    if (!title?.trim()) {
-      toast({
-        title: "Missing Title",
-        description: "Please enter a title before adding action buttons.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!category || category.length === 0) {
-      toast({
-        title: "Missing Category",
-        description: "Please select a category before adding action buttons.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!country || country.length === 0) {
-      toast({
-        title: "Missing Country",
-        description: "Please select a country before adding action buttons.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!type?.trim()) {
-      toast({
-        title: "Missing Type",
-        description: "Please select a type before adding action buttons.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!accessType?.trim()) {
-      toast({
-        title: "Missing Access Type",
-        description:
-          "Please select an access type before adding action buttons.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!articleImage) {
-      toast({
-        title: "Missing Article Image",
-        description:
-          "Please upload an article image before adding action buttons.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    if (!blocks || blocks.length === 0) {
-      toast({
-        title: "Missing Content",
-        description:
-          "Please add some content blocks before adding action buttons.",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    return true;
-  };
-
   const handleOpenModal = () => {
-    if (validateBeforeOpeningModal()) {
-      setIsDialogOpen(true);
-    }
+    setIsDialogOpen(true);
   };
+
+  const hasEmailSubscribeButton = buttons.some(
+    (button) => button.type === "email_subscribe"
+  );
+
+  const hasDonationButton = buttons.some(
+    (button) => button.type === "donation"
+  );
 
   const addButton = (button: ActionButton) => {
     onButtonsChange([...buttons, button]);
     setIsDialogOpen(false);
     setEditingButton(null);
-    toast({
-      title: "Action button added",
-      description: `${button.label} button has been added to your content.`,
-    });
   };
 
   const updateButton = (updatedButton: ActionButton) => {
@@ -156,18 +71,10 @@ export function ActionButtons({
     );
     setIsDialogOpen(false);
     setEditingButton(null);
-    toast({
-      title: "Action button updated",
-      description: `${updatedButton.label} button has been updated.`,
-    });
   };
 
   const removeButton = (buttonId: string) => {
     onButtonsChange(buttons.filter((btn) => btn.id !== buttonId));
-    toast({
-      title: "Action button removed",
-      description: "The action button has been removed from your content.",
-    });
   };
 
   const getButtonIcon = (type: ActionButton["type"]) => {
@@ -215,6 +122,9 @@ export function ActionButtons({
             }}
             emailLists={emailLists}
             isLoadingEmailLists={isLoadingEmailLists}
+            hasEmailSubscribeButton={hasEmailSubscribeButton}
+            hasDonationButton={hasDonationButton}
+            isEditing={!!editingButton}
           />
         </DialogContent>
       </Dialog>
@@ -244,16 +154,10 @@ export function ActionButtons({
                           {getButtonIcon(button.type)}
                           <span className="font-medium">{button.label}</span>
                         </div>
-
-                        <div>
-                          <Badge variant="secondary" className="text-xs">
-                            {button.type.replace("_", " ")}
-                          </Badge>
-                        </div>
                       </div>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -299,6 +203,9 @@ function ActionButtonForm({
   onCancel,
   emailLists = [],
   isLoadingEmailLists = false,
+  hasEmailSubscribeButton = false,
+  hasDonationButton = false,
+  isEditing = false,
 }: {
   button: ActionButton | null;
   onSave: (button: ActionButton) => void;
@@ -312,17 +219,58 @@ function ActionButtonForm({
     createdAt: string;
   }>;
   isLoadingEmailLists?: boolean;
+  hasEmailSubscribeButton?: boolean;
+  hasDonationButton?: boolean;
+  isEditing?: boolean;
 }) {
   const { toast } = useToast();
   const [formData, setFormData] = useState<ActionButton>({
     id: button?.id || `action-${Date.now()}`,
-    type: button?.type || "email_subscribe",
-    label: button?.label || "Subscribe to Newsletter",
+    type:
+      button?.type ||
+      (hasEmailSubscribeButton && hasDonationButton
+        ? "donation" // Default to donation if both exist, but this shouldn't happen
+        : hasEmailSubscribeButton && !isEditing
+        ? "donation"
+        : hasDonationButton && !isEditing
+        ? "email_subscribe"
+        : "email_subscribe"),
+    label:
+      button?.label ||
+      (hasEmailSubscribeButton && !isEditing
+        ? "Subscribed"
+        : hasDonationButton && !isEditing
+        ? "Email list added"
+        : "Email list added"),
     config: button?.config || {},
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent adding duplicate email subscribe buttons
+    if (
+      formData.type === "email_subscribe" &&
+      hasEmailSubscribeButton &&
+      !isEditing
+    ) {
+      toast({
+        title: "Only One Email List Button",
+        description: "You can only have one email list action button.",
+        variant: "default",
+      });
+      return;
+    }
+
+    // Prevent adding duplicate donation buttons
+    if (formData.type === "donation" && hasDonationButton && !isEditing) {
+      toast({
+        title: "Only One Donation Button",
+        description: "You can only have one donation action button.",
+        variant: "default",
+      });
+      return;
+    }
 
     // Validate email list selection for email_subscribe type
     if (formData.type === "email_subscribe") {
@@ -332,9 +280,20 @@ function ActionButtonForm({
       ) {
         toast({
           title: "Email List Required",
-          description:
-            "Please select an email list for the Email Subscribe button.",
-          variant: "destructive",
+          description: "Please select an email list.",
+          variant: "default",
+        });
+        return;
+      }
+    }
+
+    // Validate donation type selection for donation type
+    if (formData.type === "donation") {
+      if (!formData.config.donationType) {
+        toast({
+          title: "Donation Type Required",
+          description: "Please select a donation type (General or Exclusive).",
+          variant: "default",
         });
         return;
       }
@@ -354,8 +313,28 @@ function ActionButtonForm({
 
   // Update label when type changes
   const handleTypeChange = (value: string) => {
+    // Prevent adding another email subscribe button if one already exists
+    if (value === "email_subscribe" && hasEmailSubscribeButton && !isEditing) {
+      toast({
+        title: "Only One Email List Button",
+        description: "You can only have one email list action button.",
+        variant: "default",
+      });
+      return;
+    }
+
+    // Prevent adding another donation button if one already exists
+    if (value === "donation" && hasDonationButton && !isEditing) {
+      toast({
+        title: "Only One Donation Button",
+        description: "You can only have one donation action button.",
+        variant: "default",
+      });
+      return;
+    }
+
     const defaultLabel =
-      value === "email_subscribe" ? "Subscribe to Newsletter" : "Donate Now";
+      value === "email_subscribe" ? "Email list added" : "Subscribed";
     setFormData((prev) => ({
       ...prev,
       type: value as ActionButton["type"],
@@ -369,7 +348,6 @@ function ActionButtonForm({
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="emailList">Email List *</Label>
               {isLoadingEmailLists ? (
                 <div className="text-center py-4">
                   <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
@@ -414,13 +392,27 @@ function ActionButtonForm({
         return (
           <div className="space-y-4">
             <div>
-              <Label htmlFor="url">Payment URL</Label>
-              <Input
-                id="url"
-                value={formData.config.url || ""}
-                onChange={(e) => updateConfig("url", e.target.value)}
-                placeholder="https://your-payment-link"
-              />
+              <Select
+                value={formData.config.donationType || ""}
+                onValueChange={(value) => updateConfig("donationType", value)}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select donation type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="general">
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-medium">General</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="exclusive">
+                    <div className="flex items-center justify-between w-full">
+                      <span className="font-medium">Exclusive</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         );
@@ -435,12 +427,16 @@ function ActionButtonForm({
       <div className="space-y-4">
         <div>
           <Label htmlFor="type">Button Type</Label>
-          <Select value={formData.type} onValueChange={handleTypeChange}>
+          <Select
+            value={formData.type}
+            onValueChange={handleTypeChange}
+            disabled={isEditing}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="email_subscribe">Email Subscribe</SelectItem>
+              <SelectItem value="email_subscribe">Email List</SelectItem>
               <SelectItem value="donation">Donation</SelectItem>
             </SelectContent>
           </Select>
