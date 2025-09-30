@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import axios from "axios";
 import {
   Card,
   CardContent,
@@ -59,18 +60,45 @@ export function SignInForm() {
     if (!validateForm()) return;
 
     setIsLoading(true);
+    setErrors({});
 
-    const response = await signIn("credentials", {
-      email: formData.email,
-      password: formData.password,
-      redirect: false,
-    });
+    try {
+      console.log("Submitting sign-in data:", { email: formData.email });
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/auth/media-suite/sign-in`,
+        {
+          email: formData.email,
+          password: formData.password,
+        }
+      );
 
-    setIsLoading(false);
-    if (response?.ok) {
-      router.push("/dashboard");
-    } else {
-      setErrors({ general: "Invalid email or password" });
+      console.log("Sign-in successful:", response.data);
+
+      // After successful backend authentication, use NextAuth for session management
+      const authResponse = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
+
+      if (authResponse?.ok) {
+        router.push("/dashboard");
+      } else {
+        setErrors({ general: "Session creation failed. Please try again." });
+      }
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response) {
+        setErrors({
+          general: error.response.data.message || "Invalid email or password",
+        });
+      } else {
+        console.error("Sign-in error:", error);
+        setErrors({
+          general: "Could not connect to the server. Please try again.",
+        });
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 

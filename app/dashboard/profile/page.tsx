@@ -57,17 +57,14 @@ export default function ProfilePage() {
   const [isHoveringAvatar, setIsHoveringAvatar] = useState(false);
   const [editedImageUrl, setEditedImageUrl] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
-  const [isDeletingProfile, setIsDeletingProfile] = useState(false);
 
   const {
     profileData,
     loading,
     updating,
-    uploadingPicture,
     deletingAccount,
     updateProfile,
     uploadProfilePicture,
-    removeProfilePicture,
     deleteAccount,
     refreshProfile,
   } = useProfile();
@@ -96,42 +93,6 @@ export default function ProfilePage() {
       });
     }
   }, [profileData]);
-
-  // Avatar handling functions
-  const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.size > 10 * 1024 * 1024) {
-        // 10MB limit
-        toast({
-          title: "File Too Large",
-          description: "Please select an image smaller than 10MB.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Invalid File Type",
-          description: "Please select a valid image file.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setOriginalImageUrl(result);
-        setTempImageUrl(result);
-        setImageZoom(1);
-        setImagePosition({ x: 0, y: 0 });
-        setShowImageEditDialog(true);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   // Create canvas to generate resized image
   const createResizedImage = useCallback(
@@ -325,42 +286,6 @@ export default function ProfilePage() {
         description: "Failed to process the edited image. Please try again.",
         variant: "destructive",
       });
-    }
-  };
-
-  // Handle profile picture deletion
-  const handleDeleteProfilePicture = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete your profile picture?"
-    );
-    if (!confirmed) return;
-
-    setIsDeletingProfile(true);
-
-    try {
-      // Use the hook to remove the profile picture
-      const removeSuccess = await removeProfilePicture();
-
-      if (removeSuccess) {
-        // Revoke the current avatar URL if it's a blob URL
-        if (profileData?.profilePicture?.startsWith("blob:")) {
-          URL.revokeObjectURL(profileData.profilePicture);
-        }
-
-        // Clear any temporary states
-        setTempImageUrl("");
-        setOriginalImageUrl("");
-        resetImageTransform();
-      }
-    } catch (error) {
-      console.error("Error deleting profile picture:", error);
-      toast({
-        title: "Delete Failed",
-        description: "Failed to delete profile picture. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeletingProfile(false);
     }
   };
 
