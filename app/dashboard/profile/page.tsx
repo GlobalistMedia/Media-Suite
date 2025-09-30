@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useProfile } from "@/hooks/useProfile";
 import { AccountSecurity } from "@/components/profile/account-security";
+import { useSession } from "next-auth/react";
 import {
   UserCircle,
   Mail,
@@ -39,6 +40,7 @@ import {
 
 export default function ProfilePage() {
   const { toast } = useToast();
+  const { update: updateSession } = useSession();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -431,6 +433,9 @@ export default function ProfilePage() {
       if (success) {
         setIsEditing(false);
         setEditedImageUrl(null); // Clear the edited image after successful save
+
+        // Update the session to reflect changes in sidebar
+        await updateSession();
       }
     } finally {
       setIsSavingProfile(false);
