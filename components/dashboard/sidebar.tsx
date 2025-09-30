@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { signOut, useSession } from "next-auth/react";
+import axios from "axios";
 import {
   Calendar,
   Settings,
@@ -107,6 +108,30 @@ export function Sidebar() {
     setIsSigningOut(true);
 
     try {
+      // First call the backend sign-out endpoint
+      try {
+        await axios.post(
+          `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/auth/sign-out`,
+          {
+            userId: session?.user?.id,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+            withCredentials: true, // Include cookies for AuthenticationGuard
+          }
+        );
+        console.log("Backend sign-out successful");
+      } catch (backendError) {
+        console.warn(
+          "Backend sign-out failed, continuing with NextAuth sign-out:",
+          backendError
+        );
+        // Continue with NextAuth sign-out even if backend fails
+      }
+
+      // Then sign out from NextAuth
       await signOut();
       console.log("User signed out successfully");
       router.push("/");

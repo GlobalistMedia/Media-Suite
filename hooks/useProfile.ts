@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useSession } from "next-auth/react";
 
 export interface ProfileData {
   id: string;
@@ -35,6 +36,7 @@ export const useProfile = () => {
   const [uploadingPicture, setUploadingPicture] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const { toast } = useToast();
+  const { update: updateSession } = useSession();
 
   // Fetch profile data
   const fetchProfile = async () => {
@@ -88,6 +90,10 @@ export const useProfile = () => {
           title: "Success",
           description: "Profile updated successfully",
         });
+
+        // Update the session to reflect changes in sidebar
+        await updateSession();
+
         return true;
       } else {
         throw new Error(result.error || "Failed to update profile");
@@ -139,6 +145,10 @@ export const useProfile = () => {
           title: "Success",
           description: "Profile picture updated successfully",
         });
+
+        // Update the session to reflect changes in sidebar
+        await updateSession();
+
         return true;
       } else {
         throw new Error(result.error || "Failed to upload image");
@@ -186,6 +196,10 @@ export const useProfile = () => {
           title: "Success",
           description: "Profile picture removed successfully",
         });
+
+        // Update the session to reflect changes in sidebar
+        await updateSession();
+
         return true;
       } else {
         throw new Error(result.error || "Failed to remove image");
