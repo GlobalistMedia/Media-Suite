@@ -70,9 +70,10 @@ export default function ProfilePage() {
   } = useProfile();
 
   const [editData, setEditData] = useState({
+    id: "",
     name: "",
     email: "",
-    phone: "",
+    phoneNumber: "",
     location: "",
     bio: "",
     company: "",
@@ -83,9 +84,10 @@ export default function ProfilePage() {
   React.useEffect(() => {
     if (profileData) {
       setEditData({
+        id: profileData.id,
         name: profileData.name,
         email: profileData.email,
-        phone: profileData.phone,
+        phoneNumber: profileData.phone,
         location: profileData.location,
         bio: profileData.bio,
         company: profileData.company,
@@ -639,8 +641,10 @@ export default function ProfilePage() {
                 {isEditing ? (
                   <Input
                     id="phone"
-                    value={editData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
+                    value={editData.phoneNumber}
+                    onChange={(e) =>
+                      handleInputChange("phoneNumber", e.target.value)
+                    }
                     className="mt-1"
                     placeholder="Enter phone number"
                   />

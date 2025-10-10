@@ -21,10 +21,11 @@ export interface ProfileData {
 }
 
 export interface UpdateProfileData {
+  id?: string;
   name?: string;
   bio?: string;
   location?: string;
-  phone?: string;
+  phoneNumber?: string;
   company?: string;
   website?: string;
 }
@@ -70,22 +71,44 @@ export const useProfile = () => {
   const updateProfile = async (data: UpdateProfileData): Promise<boolean> => {
     try {
       setUpdating(true);
-      const response = await fetch("/api/profile", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/users/update-profile?id=${data?.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to update profile");
       }
-
       const result = await response.json();
-      if (result.success) {
-        setProfileData(result.data);
+
+      if (result.status === 200) {
+        const resData = result.response;
+        const profile: any = {
+          id: resData._id,
+          name: `${resData.firstName} ${resData.lastName}`,
+          email: resData.email,
+          bio: resData.bio || "",
+          location: resData.location || "",
+          phone: resData.phoneNumber || "",
+          company: resData.company || "",
+          website: resData.website || "",
+          // profilePicture: resData.profilePicture || "",
+          // contentCreatedCount: resData.contentCreatedCount || 0,
+          // aiGenerationsCount: resData.aiGenerationsCount || 0,
+          // joinDate: resData.joinDate || "",
+          // userSubscriptionLevel: resData.userSubscriptionLevel || "free",
+          // isOnboarded: resData.isOnboarded ?? false,
+          // passwordChangedAt: resData.passwordChangedAt,
+        };
+        setProfileData(profile);
+
         toast({
           title: "Success",
           description: "Profile updated successfully",
