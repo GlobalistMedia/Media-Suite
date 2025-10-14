@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
+import axios from "axios";
 
 export async function GET() {
   try {
@@ -15,9 +16,21 @@ export async function GET() {
 
     await dbConnect();
 
+    let liveProfileData = [];
+
     const user = await User.findOne({ email: session.user.email }).select(
       "-password -twoFactorSecret -sessions"
     );
+
+    try {
+      const { data } = await axios.get(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/users/profile/${session.user.email}`
+      );
+
+      liveProfileData = data.response;
+    } catch (error) {
+      console.error("Failed to fetch user profile", error);
+    }
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -26,12 +39,12 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        bio: user.bio || "",
-        location: user.location || "",
-        phone: user.phone || "",
+        id: liveProfileData._id,
+        name: `${liveProfileData.firstName} ${liveProfileData.lastName}`,
+        email: liveProfileData.email,
+        bio: liveProfileData.bio || "",
+        location: liveProfileData.location || "",
+        phone: liveProfileData.phoneNumber || "",
         company: user.company || "",
         website: user.website || "",
         profilePicture: user.profilePicture,

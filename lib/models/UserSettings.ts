@@ -28,7 +28,7 @@ export interface INotificationSettings {
 }
 
 export interface IPlatformIntegration {
-  platformId: string; // "X", "linkedin", "instagram", "tiktok", "youtube", "facebook", "wordpress"
+  platformId?: string; // "X", "linkedin", "instagram", "tiktok", "youtube", "facebook", "wordpress"
   isConnected: boolean;
   username?: string;
   accessToken?: string; // encrypted

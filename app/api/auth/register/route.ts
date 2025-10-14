@@ -30,6 +30,7 @@ export async function POST(request: Request) {
             lastName,
             password,
             phoneNumber,
+            role: "creator",
           }),
         }
       );

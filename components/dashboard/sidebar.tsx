@@ -27,6 +27,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { SignOutModal } from "@/components/auth/signout-modal";
 import { motion } from "framer-motion";
+import { useProfile } from "@/hooks/useProfile";
 
 const routes = [
   {
@@ -64,11 +65,20 @@ const routes = [
 export function Sidebar() {
   const [mounted, setMounted] = useState(false);
   const pathname = usePathname();
-
+  const {
+    profileData,
+    loading,
+    updating,
+    deletingAccount,
+    updateProfile,
+    uploadProfilePicture,
+    deleteAccount,
+    refreshProfile,
+  } = useProfile();
   const router = useRouter();
   const { data: session } = useSession();
   const user = {
-    name: session?.user.name,
+    name: profileData?.name,
     email: session?.user.email,
     avatar: session?.user.profilePicture,
     isPremium: session?.user.userSubscriptionLevel !== "free", // Assuming userSubscriptionLevel is set
@@ -84,42 +94,22 @@ export function Sidebar() {
     setMounted(true);
   }, []);
 
-  // Simulate fetching user data - replace with your actual auth logic
-  // useEffect(() => {
-  //   const fetchUserData = async () => {
-  //     console.log("session", session);
-  //     try {
-  //       const userData = {
-  //         name: session?.user.name,
-  //         email: session?.user.email,
-  //         avatar: session?.user.image,
-  //         userSubscriptionLevel : session?.user.userSubscriptionLevel, // Set this based on your user's subscription status
-  //       };
-  //       setUser(userData);
-  //     } catch (error) {
-  //       console.error("Failed to fetch user data:", error);
-  //     }
-  //   };
-
-  //   fetchUserData();
-  // }, []);
-
   const handleSignOut = async () => {
     setIsSigningOut(true);
-
+    const userId = profileData?.id;
     try {
       // First call the backend sign-out endpoint
       try {
         await axios.post(
           `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/auth/sign-out`,
           {
-            userId: session?.user?.id,
+            userId,
           },
           {
             headers: {
               "Content-Type": "application/json",
             },
-            withCredentials: true, // Include cookies for AuthenticationGuard
+            // withCredentials: true, // Include cookies for AuthenticationGuard
           }
         );
         console.log("Backend sign-out successful");
