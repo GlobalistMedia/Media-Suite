@@ -22,8 +22,10 @@ export interface ProfileData {
 
 export interface UpdateProfileData {
   id?: string;
-  name?: string;
+  fullName?: string;
+  lastName?: string;
   bio?: string;
+  image?: string | File;
   location?: string;
   phoneNumber?: string;
   company?: string;
@@ -99,6 +101,8 @@ export const useProfile = () => {
           phone: resData.phoneNumber || "",
           company: resData.company || "",
           website: resData.website || "",
+          profilePicture: resData.image || "",
+
           // profilePicture: resData.profilePicture || "",
           // contentCreatedCount: resData.contentCreatedCount || 0,
           // aiGenerationsCount: resData.aiGenerationsCount || 0,

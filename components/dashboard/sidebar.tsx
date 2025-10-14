@@ -78,7 +78,7 @@ export function Sidebar() {
   const router = useRouter();
   const { data: session } = useSession();
   const user = {
-    name: session?.user.name,
+    name: profileData?.name,
     email: session?.user.email,
     avatar: session?.user.profilePicture,
     isPremium: session?.user.userSubscriptionLevel !== "free", // Assuming userSubscriptionLevel is set

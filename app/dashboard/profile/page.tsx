@@ -69,29 +69,48 @@ export default function ProfilePage() {
     refreshProfile,
   } = useProfile();
 
-  const [editData, setEditData] = useState({
+  type EditDataType = {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phoneNumber: string;
+    location: string;
+    bio: string;
+    company: string;
+    image: File | string;
+    website: string;
+  };
+
+  const [editData, setEditData] = useState<EditDataType>({
     id: "",
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phoneNumber: "",
     location: "",
     bio: "",
     company: "",
+    image: "",
     website: "",
   });
 
+  const firstName = profileData?.name.split(" ")[0];
+  const lastName = profileData?.name.split(" ").slice(1).join(" ") || "";
   // Initialize edit data when profile data loads
   React.useEffect(() => {
     if (profileData) {
       setEditData({
         id: profileData.id,
-        name: profileData.name,
+        firstName: firstName as string,
+        lastName: lastName as string,
         email: profileData.email,
         phoneNumber: profileData.phone,
         location: profileData.location,
         bio: profileData.bio,
         company: profileData.company,
         website: profileData.website,
+        image: profileData.profilePicture,
       });
     }
   }, [profileData]);
@@ -335,6 +354,12 @@ export default function ProfilePage() {
           });
 
           const uploadSuccess = await uploadProfilePicture(file);
+
+          setEditData((prev) => ({
+            ...prev,
+            image: file,
+          }));
+
           if (!uploadSuccess) {
             toast({
               title: "Upload Failed",
@@ -597,23 +622,45 @@ export default function ProfilePage() {
             <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
               <div>
                 <Label htmlFor="name" className="text-foreground">
-                  Full Name
+                  First Name
                 </Label>
                 {isEditing ? (
                   <Input
                     id="name"
-                    value={editData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
+                    value={editData.firstName}
+                    onChange={(e) =>
+                      handleInputChange("firstName", e.target.value)
+                    }
                     className="mt-1"
                   />
                 ) : (
                   <div className="flex items-center mt-1 p-2 text-foreground">
                     <UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />
-                    {profileData.name}
+
+                    {profileData.name.split(" ")[0]}
                   </div>
                 )}
               </div>
-
+              <div>
+                <Label htmlFor="name" className="text-foreground">
+                  Last Name
+                </Label>
+                {isEditing ? (
+                  <Input
+                    id="lastName"
+                    value={editData.lastName}
+                    onChange={(e) =>
+                      handleInputChange("lastName", e.target.value)
+                    }
+                    className="mt-1"
+                  />
+                ) : (
+                  <div className="flex items-center mt-1 p-2 text-foreground">
+                    <UserCircle className="mr-2 h-4 w-4 text-muted-foreground" />
+                    {profileData.name.split(" ").slice(1).join(" ")}
+                  </div>
+                )}
+              </div>
               <div>
                 <Label htmlFor="email" className="text-foreground">
                   Email

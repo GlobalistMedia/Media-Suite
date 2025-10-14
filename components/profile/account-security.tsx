@@ -116,21 +116,19 @@ export function AccountSecurity({
     setIsChangingPassword(true);
 
     try {
-      const response = await fetch("/api/profile/update-password", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-          confirmPassword: passwordForm.confirmPassword,
-        }),
-      });
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_GLOBALIST_LIVE_URL}/auth/media-suite/change-password?id=${profileData?.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            password: passwordForm.currentPassword,
+            newPassword: passwordForm.newPassword,
+          }),
+        }
+      );
 
       const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to update password");
-      }
 
       // Reset form
       setPasswordForm({
