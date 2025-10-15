@@ -4,6 +4,7 @@ import GoogleProvider from "next-auth/providers/google";
 import FacebookProvider from "next-auth/providers/facebook";
 import dbConnect from "@/lib/dbConnect";
 import User from "@/lib/models/User";
+import axios from "axios";
 
 export const authOptions: AuthOptions = {
   // 1. CONFIGURE LOGIN PROVIDERS
@@ -37,24 +38,15 @@ export const authOptions: AuthOptions = {
 
         const user = await User.findOne({
           email: credentials.email,
-        }).select("+password +isActive");
+        });
 
         if (!user) {
           return null;
         }
 
         // Check if user account is active
-        if (!user.isActive) {
+        if (!user.isOnboarded) {
           throw new Error("Account has been deleted.");
-        }
-
-        const isValid = await user.comparePassword(
-          credentials.password,
-          user.password
-        );
-
-        if (!isValid) {
-          return null;
         }
 
         return {
